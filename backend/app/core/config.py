@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL", 
-        f"sqlite:///{BASE_DIR / 'storage' / 'safety_compliance.db'}"
+        "postgresql://postgres:66627474@localhost:5432/Safegear"
     )
     
     # Redis

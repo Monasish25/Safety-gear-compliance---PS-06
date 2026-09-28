@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from app.core.config import settings
 from app.core.database import init_db, SessionLocal
 from app.core.storage import storage
-from app.api import cameras, zones, ppe_rules, events, analytics, videos, ws, copilot
+from app.api import events, videos, ws, zones, analytics
 from app.demo_generator import generate_demo_video
 from app.models import schema
 
@@ -41,14 +41,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API Routers
-app.include_router(cameras.router, prefix=settings.API_V1_STR)
+# app.include_router(cameras.router, prefix=settings.API_V1_STR)
 app.include_router(zones.router, prefix=settings.API_V1_STR)
-app.include_router(ppe_rules.router, prefix=settings.API_V1_STR)
+# app.include_router(ppe_rules.router, prefix=settings.API_V1_STR)
 app.include_router(events.router, prefix=settings.API_V1_STR)
 app.include_router(analytics.router, prefix=settings.API_V1_STR)
 app.include_router(videos.router, prefix=settings.API_V1_STR)
-app.include_router(copilot.router, prefix=settings.API_V1_STR)
+# app.include_router(copilot.router, prefix=settings.API_V1_STR)
 app.include_router(ws.router, prefix=settings.API_V1_STR)
 
 # Serve Evidence Images
@@ -79,26 +78,10 @@ async def generate_demo_simulation(background_tasks: BackgroundTasks):
     # Generate video synchronously
     generate_demo_video(output_path, duration_sec=16, fps=25)
 
-    # Save video entry
-    db = SessionLocal()
-    video_rec = schema.ProcessedVideo(
-        id=video_id,
-        filename="factory_safety_demo.mp4",
-        file_path=output_path,
-        status="PROCESSING"
-    )
-    db.add(video_rec)
-    db.commit()
-    db.close()
-
-    # Trigger processing in background
-    from app.api.videos import run_pipeline_task
-    background_tasks.add_task(run_pipeline_task, video_id, output_path, "CAM_01")
-
+    # Demo generator is temporarily disabled during schema migration
     return {
-        "status": "STARTED",
-        "video_id": video_id,
-        "message": "Demo factory video generated. Processing pipeline started with live WebSocket alerts."
+        "status": "DISABLED",
+        "message": "Demo generator disabled during schema migration."
     }
 
 @app.get("/health")

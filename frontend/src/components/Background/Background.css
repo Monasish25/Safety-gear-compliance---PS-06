@@ -1,0 +1,29 @@
+.site-background {
+  position: fixed;
+  inset: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #020711;
+}
+
+.site-background::before {
+  position: absolute;
+  inset: -12px;
+  content: '';
+  background-image:
+    linear-gradient(rgba(3, 10, 21, .28), rgba(3, 10, 21, .48)),
+    url('/bg.jpg');
+  background-position: center;
+  background-size: cover;
+  filter: blur(3px);
+  transform: scale(1.02);
+}
+
+.site-background::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background:
+    radial-gradient(ellipse at 50% 72%, rgba(0, 94, 219, .22), transparent 46%),
+    linear-gradient(180deg, rgba(3, 8, 17, .12), rgba(3, 8, 17, .2));
+}

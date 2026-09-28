@@ -1,9 +1,22 @@
 import logging
 import json
-from typing import List, Dict
+import datetime
+import uuid
+from typing import List, Dict, Any
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 
 logger = logging.getLogger("safegear.ws")
+
+def _json_serial(obj: Any) -> Any:
+    """JSON serializer for objects not serializable by default json code."""
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+        return obj.isoformat()
+    if isinstance(obj, BaseModel):
+        return obj.model_dump()
+    if isinstance(obj, uuid.UUID):
+        return str(obj)
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 router = APIRouter()
 
@@ -24,8 +37,8 @@ class ConnectionManager:
     async def broadcast_alert(self, alert_data: Dict):
         """Broadcast safety alert to all connected dashboard supervisors."""
         dead_connections = []
-        payload = json.dumps(alert_data)
-        for connection in self.active_connections:
+        payload = json.dumps(alert_data, default=_json_serial)
+        for connection in list(self.active_connections):
             try:
                 await connection.send_text(payload)
             except Exception as e:

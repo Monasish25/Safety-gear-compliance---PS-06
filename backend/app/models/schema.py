@@ -1,149 +1,90 @@
 import uuid
 import datetime
-from sqlalchemy import Column, String, Boolean, Float, Integer, DateTime, ForeignKey, JSON, Text
+from sqlalchemy import Column, String, Boolean, Float, Integer, DateTime, ForeignKey, JSON, Text, Numeric, Date
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from app.core.database import Base
 
 def gen_uuid():
     return str(uuid.uuid4())
 
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(String(36), primary_key=True, default=gen_uuid)
-    name = Column(String(100), nullable=False)
-    role = Column(String(50), nullable=False, default="Safety Supervisor")
-    email = Column(String(100), unique=True, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
-
-    actions = relationship("AlertAction", back_populates="user")
-    events_acknowledged = relationship("SafetyEvent", back_populates="acknowledger")
-
-class Camera(Base):
-    __tablename__ = "cameras"
-
-    id = Column(String(50), primary_key=True)  # e.g., CAM_01
-    name = Column(String(100), nullable=False)
-    location_label = Column(String(150), nullable=False)
-    stream_url = Column(String(255), nullable=True)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
-
-    zones = relationship("Zone", back_populates="camera", cascade="all, delete-orphan")
-    events = relationship("SafetyEvent", back_populates="camera")
-    tracks = relationship("WorkerTrack", back_populates="camera")
-    health_logs = relationship("CameraHealthLog", back_populates="camera")
-
 class Zone(Base):
     __tablename__ = "zones"
-
-    id = Column(String(50), primary_key=True)  # e.g., ZONE_WELDING
-    camera_id = Column(String(50), ForeignKey("cameras.id"), nullable=False)
+    zone_id = Column(String(36), primary_key=True, default=gen_uuid)
     name = Column(String(100), nullable=False)
-    risk_level = Column(String(20), nullable=False, default="Medium")  # Low, Medium, High, Critical
-    polygon = Column(JSON, nullable=False)  # JSON points / rect
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    camera_source = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="ok")  # ok, warning, alert
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    camera = relationship("Camera", back_populates="zones")
-    ppe_rule = relationship("PPERule", back_populates="zone", uselist=False, cascade="all, delete-orphan")
-    events = relationship("SafetyEvent", back_populates="zone")
+    detections = relationship("Detection", back_populates="zone", cascade="all, delete-orphan")
+    alerts = relationship("Alert", back_populates="zone", cascade="all, delete-orphan")
+    daily_summaries = relationship("DailyZoneSummary", back_populates="zone", cascade="all, delete-orphan")
+    workers = relationship("Worker", back_populates="zone")
 
-class PPERule(Base):
-    __tablename__ = "ppe_rules"
+class Detection(Base):
+    __tablename__ = "detections"
+    detection_id = Column(String(36), primary_key=True, default=gen_uuid)
+    zone_id = Column(String(36), ForeignKey("zones.zone_id", ondelete="CASCADE"), nullable=False)
+    tracker_id = Column(String(50), nullable=True)
+    event_type = Column(String(30), nullable=False)  # fire, smoke, no_helmet, no_vest, no_gloves, compliant
+    confidence = Column(Numeric(4, 3), nullable=False)
+    frame_timestamp = Column(DateTime(timezone=True), nullable=False)
+    snapshot_path = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    id = Column(String(36), primary_key=True, default=gen_uuid)
-    zone_id = Column(String(50), ForeignKey("zones.id"), unique=True, nullable=False)
-    helmet_required = Column(Boolean, default=True)
-    vest_required = Column(Boolean, default=True)
-    gloves_required = Column(Boolean, default=False)
-    mask_required = Column(Boolean, default=False)
-    updated_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))
+    zone = relationship("Zone", back_populates="detections")
+    alerts = relationship("Alert", back_populates="detection", cascade="all, delete-orphan")
 
-    zone = relationship("Zone", back_populates="ppe_rule")
+class Alert(Base):
+    __tablename__ = "alerts"
+    alert_id = Column(String(36), primary_key=True, default=gen_uuid)
+    detection_id = Column(String(36), ForeignKey("detections.detection_id", ondelete="CASCADE"), nullable=False)
+    zone_id = Column(String(36), ForeignKey("zones.zone_id", ondelete="CASCADE"), nullable=False)
+    event_type = Column(String(30), nullable=False)
+    severity = Column(String(10), nullable=False)  # critical, high, medium
+    status = Column(String(20), nullable=False, default="open")  # open, acknowledged, resolved
+    triggered_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
 
-class WorkerTrack(Base):
-    __tablename__ = "worker_tracks"
+    detection = relationship("Detection", back_populates="alerts")
+    zone = relationship("Zone", back_populates="alerts")
+    notifications = relationship("Notification", back_populates="alert", cascade="all, delete-orphan")
 
-    id = Column(String(36), primary_key=True, default=gen_uuid)
-    camera_id = Column(String(50), ForeignKey("cameras.id"), nullable=False)
-    tracker_id = Column(String(50), nullable=False)  # Anonymous ID, e.g., CAM_01_W_017
-    first_seen_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
-    last_seen_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
-    status = Column(String(30), default="ACTIVE")
+class Notification(Base):
+    __tablename__ = "notifications"
+    notification_id = Column(String(36), primary_key=True, default=gen_uuid)
+    alert_id = Column(String(36), ForeignKey("alerts.alert_id", ondelete="CASCADE"), nullable=False)
+    channel = Column(String(20), nullable=False)  # telegram, email, dashboard
+    sent_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    delivery_status = Column(String(10), nullable=False, default="sent")  # sent, failed
 
-    camera = relationship("Camera", back_populates="tracks")
-    events = relationship("SafetyEvent", back_populates="worker_track")
+    alert = relationship("Alert", back_populates="notifications")
 
-class SafetyEvent(Base):
-    __tablename__ = "safety_events"
+class DailyZoneSummary(Base):
+    __tablename__ = "daily_zone_summary"
+    summary_id = Column(String(36), primary_key=True, default=gen_uuid)
+    zone_id = Column(String(36), ForeignKey("zones.zone_id", ondelete="CASCADE"), nullable=False)
+    date = Column(Date, nullable=False)
+    compliance_pct = Column(Numeric(5, 2), nullable=True)
+    incident_count = Column(Integer, nullable=False, default=0)
+    avg_detection_to_alert_latency_ms = Column(Integer, nullable=True)
 
-    id = Column(String(36), primary_key=True, default=gen_uuid)
-    camera_id = Column(String(50), ForeignKey("cameras.id"), nullable=False)
-    zone_id = Column(String(50), ForeignKey("zones.id"), nullable=True)
-    worker_track_id = Column(String(36), ForeignKey("worker_tracks.id"), nullable=True)
-    event_type = Column(String(50), nullable=False)  # MISSING_HELMET, MISSING_VEST, SMOKE_DETECTED, FIRE_DETECTED
-    severity = Column(String(20), nullable=False)    # LOW, MEDIUM, HIGH, CRITICAL
-    confidence = Column(Float, nullable=False, default=0.0)
-    status = Column(String(30), nullable=False, default="NEW")  # NEW, ACKNOWLEDGED, RESOLVED
-    started_at = Column(DateTime, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc))
-    ended_at = Column(DateTime, nullable=True)
-    acknowledged_by = Column(String(36), ForeignKey("users.id"), nullable=True)
-    acknowledged_at = Column(DateTime, nullable=True)
-    resolved_at = Column(DateTime, nullable=True)
-    event_metadata = Column(JSON, nullable=True)
+    zone = relationship("Zone", back_populates="daily_summaries")
 
-    camera = relationship("Camera", back_populates="events")
-    zone = relationship("Zone", back_populates="events")
-    worker_track = relationship("WorkerTrack", back_populates="events")
-    acknowledger = relationship("User", back_populates="events_acknowledged")
-    evidence_files = relationship("EvidenceFile", back_populates="safety_event", cascade="all, delete-orphan")
-    actions = relationship("AlertAction", back_populates="safety_event", cascade="all, delete-orphan")
+class Worker(Base):
+    __tablename__ = "workers"
+    worker_id = Column(String(36), primary_key=True, default=gen_uuid)
+    name = Column(String(100), nullable=False)
+    assigned_zone = Column(String(36), ForeignKey("zones.zone_id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-class EvidenceFile(Base):
-    __tablename__ = "evidence_files"
+    zone = relationship("Zone", back_populates="workers")
 
-    id = Column(String(36), primary_key=True, default=gen_uuid)
-    safety_event_id = Column(String(36), ForeignKey("safety_events.id"), nullable=False)
-    evidence_type = Column(String(30), default="IMAGE")  # IMAGE, CLIP
-    object_path = Column(String(255), nullable=False)
-    captured_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
-    is_annotated = Column(Boolean, default=True)
-
-    safety_event = relationship("SafetyEvent", back_populates="evidence_files")
-
-class AlertAction(Base):
-    __tablename__ = "alert_actions"
-
-    id = Column(String(36), primary_key=True, default=gen_uuid)
-    safety_event_id = Column(String(36), ForeignKey("safety_events.id"), nullable=False)
-    action = Column(String(30), nullable=False)  # ACKNOWLEDGE, RESOLVE, NOTE
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
-    timestamp = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
-    note = Column(Text, nullable=True)
-
-    safety_event = relationship("SafetyEvent", back_populates="actions")
-    user = relationship("User", back_populates="actions")
-
-class CameraHealthLog(Base):
-    __tablename__ = "camera_health_logs"
-
-    id = Column(String(36), primary_key=True, default=gen_uuid)
-    camera_id = Column(String(50), ForeignKey("cameras.id"), nullable=False)
-    status = Column(String(30), nullable=False)  # HEALTHY, DEGRADED, OFFLINE
-    checked_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
-    detail = Column(String(255), nullable=True)
-
-    camera = relationship("Camera", back_populates="health_logs")
-
-class ProcessedVideo(Base):
-    __tablename__ = "processed_videos"
-
-    id = Column(String(36), primary_key=True, default=gen_uuid)
-    filename = Column(String(255), nullable=False)
-    file_path = Column(String(255), nullable=False)
-    status = Column(String(30), default="QUEUED")  # QUEUED, PROCESSING, COMPLETED, FAILED
-    total_frames = Column(Integer, default=0)
-    processed_frames = Column(Integer, default=0)
-    violation_count = Column(Integer, default=0)
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
-    finished_at = Column(DateTime, nullable=True)
+class ModelRun(Base):
+    __tablename__ = "model_runs"
+    run_id = Column(String(36), primary_key=True, default=gen_uuid)
+    model_name = Column(String(50), nullable=False)
+    model_version = Column(String(20), nullable=False)
+    video_source = Column(Text, nullable=True)
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
