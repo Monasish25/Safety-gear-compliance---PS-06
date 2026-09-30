@@ -1,0 +1,15 @@
+{
+  "name": "safegear-compliance",
+  "version": "1.0.0",
+  "description": "SafeGear Compliance AI - Industrial PPE Safety Vision System",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "preview": "npm run preview --prefix frontend",
+    "lint": "npm run lint --prefix frontend",
+    "install:frontend": "npm install --prefix frontend",
+    "backend": "cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
+    "start": "start cmd /k \"cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload\" && npm run dev --prefix frontend"
+  }
+}
