@@ -10,6 +10,8 @@ import PerimeterFeeds from './PerimeterFeeds/PerimeterFeeds.jsx'
 import ThreatStream from './ThreatStream/ThreatStream.jsx'
 import ZoneStatus from './ZoneStatus/ZoneStatus.jsx'
 import MonitorFooter from './Footer/Footer.jsx'
+import WorkerAccountabilityPanel from './WorkerAccountability/WorkerAccountabilityPanel.jsx'
+import { workerLocations, accountabilityState } from './data/workerLocation.js'
 import PtzConsole from './PtzConsole/PtzConsole.jsx'
 import Toast from './Toast/Toast.jsx'
 import './LiveMonitoringPage.css'
@@ -107,9 +109,11 @@ export default function LiveMonitoringPage({ user, onHome, onIncidents, onAnalyt
             <MainFeed feed={selectedFeed} view={view} infrared={infrared} overlays={overlays} zoom={zoom} cameraStream={cameraStream} cameraError={cameraError} onToggleCamera={toggleDeviceCamera} onZoom={() => setZoom((value) => Math.min(4, value + .1))} />
             <PerimeterFeeds selectedFeed={selectedFeed} onSelect={(feed) => { setSelectedFeed(feed); setZoom(1) }} />
           </div>
-          <ThreatStream threats={threats} onAction={handleAction} hideResolved={hideResolved} setHideResolved={setHideResolved} streamRef={streamRef} onExport={exportStream} />
         </div>
         <ZoneStatus />
+        {/* Worker accountability section — awaiting backend integration */}
+        <WorkerAccountabilityPanel workerLocations={workerLocations} accountabilityState={accountabilityState} />
+        <ThreatStream threats={threats} onAction={handleAction} hideResolved={hideResolved} setHideResolved={setHideResolved} streamRef={streamRef} onExport={exportStream} />
         <MonitorFooter />
       </main>
       {ptzOpen && <PtzConsole onZoom={(amount) => setZoom((value) => Math.max(1, Math.min(4, value + amount)))} onClose={() => setPtzOpen(false)} />}
