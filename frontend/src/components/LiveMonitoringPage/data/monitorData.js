@@ -1,8 +1,49 @@
+// Feed catalogue — IDs match CCTV_CAMERAS in backend/app/detector.py
 export const feedList = [
-  { id: 'CAM-01', zone: 'ZONE A', shortZone: 'FAB A', place: 'HEAVY FABRICATION', status: 'SECURE', tone: 'normal', position: '18% 50%' },
-  { id: 'CAM-02', zone: 'ZONE C', shortZone: 'CHEM C', place: 'CHEMICAL LOADING', status: '1 WARNING', tone: 'warning', position: '60% 38%' },
-  { id: 'CAM-03', zone: 'ZONE D', shortZone: 'DOCK D', place: 'LOGISTICS DOCK', status: 'NORMAL', tone: 'normal', position: '85% 68%' },
-  { id: 'CAM-05', zone: 'ZONE B', shortZone: 'ROOF B', place: 'ROOF ARRAY', status: 'CLEAR', tone: 'normal', position: '42% 20%' },
+  {
+    id: 'CAM-01',
+    zone: 'ZONE_WELDING',
+    shortZone: 'WELD B4',
+    place: 'WELDING BAY - SECTOR B4',
+    status: '1 WARNING',
+    tone: 'warning',
+    position: '18% 50%',
+    videoUrl: '/storage/demo_video/13751987_3840_2160_50fps.mp4',
+    altUrl: 'http://localhost:8000/storage/demo_video/13751987_3840_2160_50fps.mp4',
+  },
+  {
+    id: 'CAM-02',
+    zone: 'ZONE_ASSEMBLY',
+    shortZone: 'ASSM A',
+    place: 'ASSEMBLY LINE - SECTOR A',
+    status: 'SECURE',
+    tone: 'normal',
+    position: '60% 38%',
+    videoUrl: '/storage/demo_video/14990691_2160_3840_30fps.mp4',
+    altUrl: 'http://localhost:8000/storage/demo_video/14990691_2160_3840_30fps.mp4',
+  },
+  {
+    id: 'CAM-03',
+    zone: 'ZONE_LOADING',
+    shortZone: 'DOCK S',
+    place: 'LOADING DOCK - SOUTH GATE',
+    status: 'NORMAL',
+    tone: 'normal',
+    position: '85% 68%',
+    videoUrl: '/storage/demo_video/19832492-hd_1920_1080_25fps.mp4',
+    altUrl: 'http://localhost:8000/storage/demo_video/19832492-hd_1920_1080_25fps.mp4',
+  },
+  {
+    id: 'CAM-04',
+    zone: 'ZONE_PERIMETER',
+    shortZone: 'PERIM E',
+    place: 'PERIMETER - EAST FENCE',
+    status: 'CLEAR',
+    tone: 'normal',
+    position: '42% 20%',
+    videoUrl: '/storage/demo_video/42923-434300950.mp4',
+    altUrl: 'http://localhost:8000/storage/demo_video/42923-434300950.mp4',
+  },
 ]
 
 export const initialThreats = [
@@ -21,4 +62,3 @@ export const randomThreats = [
 ]
 
 export const zones = ['ALL ZONES (24)', 'ZONE A - HEAVY FABRICATION (8)', 'ZONE B - SMELTING & ASSEMBLY (6)', 'ZONE C - CHEMICAL & LOADING (10)']
-

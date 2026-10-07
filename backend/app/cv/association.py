@@ -1,151 +1,173 @@
-import cv2
-import numpy as np
-from typing import List, Dict, Tuple, Optional
-from app.core.config import settings
+"""
+app.cv.association
+------------------
+PPE association engine: maps detected PPE items to person bounding boxes
+using anatomical sub-regions (head, torso, lower-body, hands).
 
-def calculate_box_overlap(boxA: List[float], boxB: List[float]) -> float:
-    """Calculates intersection area relative to boxB area."""
-    xA = max(boxA[0], boxB[0])
-    yA = max(boxA[1], boxB[1])
-    xB = min(boxA[2], boxB[2])
-    yB = min(boxA[3], boxB[3])
+Box format throughout: [x1, y1, x2, y2] in pixel coordinates.
+"""
+from __future__ import annotations
 
-    inter_width = max(0.0, xB - xA)
-    inter_height = max(0.0, yB - yA)
-    inter_area = inter_width * inter_height
+from typing import Any
 
-    boxB_area = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1])
-    if boxB_area <= 0:
+
+# ---------------------------------------------------------------------------
+# Public helper
+# ---------------------------------------------------------------------------
+
+def calculate_box_overlap(box_a: list[float], box_b: list[float]) -> float:
+    """
+    Return the Intersection-over-Union (IoU) of two axis-aligned boxes.
+
+    Parameters
+    ----------
+    box_a, box_b : [x1, y1, x2, y2]
+
+    Returns
+    -------
+    float in [0, 1]
+    """
+    ax1, ay1, ax2, ay2 = box_a
+    bx1, by1, bx2, by2 = box_b
+
+    inter_x1 = max(ax1, bx1)
+    inter_y1 = max(ay1, by1)
+    inter_x2 = min(ax2, bx2)
+    inter_y2 = min(ay2, by2)
+
+    inter_w = max(0.0, inter_x2 - inter_x1)
+    inter_h = max(0.0, inter_y2 - inter_y1)
+    inter_area = inter_w * inter_h
+
+    if inter_area == 0:
         return 0.0
-    return inter_area / boxB_area
 
-def apply_clahe(frame: np.ndarray) -> np.ndarray:
-    """Enhance contrast with CLAHE for low-light or dusty frames."""
-    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-    cl = clahe.apply(l)
-    limg = cv2.merge((cl, a, b))
-    enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-    return cv2.fastNlMeansDenoisingColored(enhanced, None, 3, 3, 7, 21) if False else enhanced
+    area_a = max(0.0, ax2 - ax1) * max(0.0, ay2 - ay1)
+    area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
+    union_area = area_a + area_b - inter_area
 
-def is_low_contrast(crop: np.ndarray, std_thresh: float = 28.0) -> bool:
-    """Detect dusty or dim scene by gray standard deviation."""
-    if crop.size == 0:
-        return True
-    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-    return float(np.std(gray)) < std_thresh
+    return inter_area / union_area if union_area > 0 else 0.0
+
+
+# ---------------------------------------------------------------------------
+# PPEAssociationEngine
+# ---------------------------------------------------------------------------
+
+# Minimum IoU threshold to count a PPE item as "overlapping" a sub-region
+_OVERLAP_THRESHOLD = 0.10
+
+# Anatomical region fractions of person height
+_HEAD_TOP_FRAC    = 0.0   # from top of bbox
+_HEAD_BOTTOM_FRAC = 0.30  # top 30 % → head/helmet zone
+_TORSO_TOP_FRAC   = 0.25  # 25 % from top  → torso start
+_TORSO_BOTTOM_FRAC = 0.70 # 70 % from top  → torso end
+_HANDS_TOP_FRAC   = 0.55
+_HANDS_BOTTOM_FRAC = 0.85
+
 
 class PPEAssociationEngine:
-    def __init__(
-        self,
-        head_ratio: float = settings.HEAD_RATIO,
-        torso_start: float = settings.TORSO_START_RATIO,
-        torso_end: float = settings.TORSO_END_RATIO,
-        overlap_threshold: float = 0.35
-    ):
-        self.head_ratio = head_ratio
-        self.torso_start = torso_start
-        self.torso_end = torso_end
-        self.overlap_threshold = overlap_threshold
+    """
+    Assess PPE compliance for a single tracked person.
 
-    def get_person_regions(self, person_bbox: List[float]) -> Dict[str, List[float]]:
-        """
-        Calculates head and torso region boxes from person [x1, y1, x2, y2].
-        Head: top 30%
-        Torso: 25% to 70%
-        """
-        x1, y1, x2, y2 = person_bbox
-        height = y2 - y1
+    Usage::
 
-        head_box = [x1, y1, x2, y1 + (height * self.head_ratio)]
-        torso_box = [x1, y1 + (height * self.torso_start), x2, y1 + (height * self.torso_end)]
+        engine = PPEAssociationEngine()
+        regions = engine.get_person_regions([x1, y1, x2, y2])
+        result  = engine.assess_person_ppe(person_box, detected_ppe)
+    """
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def get_person_regions(self, person_box: list[float]) -> dict[str, list[int]]:
+        """
+        Split a person bounding box into anatomical sub-regions.
+
+        Returns a dict with keys ``head``, ``torso``, ``lower_body``, ``hands``.
+        Each value is [x1, y1, x2, y2] (integer pixel coords).
+        """
+        x1, y1, x2, y2 = person_box
+        h = y2 - y1
+
+        def _region(top_frac: float, bot_frac: float) -> list[int]:
+            return [
+                int(x1),
+                int(y1 + h * top_frac),
+                int(x2),
+                int(y1 + h * bot_frac),
+            ]
 
         return {
-            "head": head_box,
-            "torso": torso_box
+            "head":       _region(_HEAD_TOP_FRAC,    _HEAD_BOTTOM_FRAC),
+            "torso":      _region(_TORSO_TOP_FRAC,   _TORSO_BOTTOM_FRAC),
+            "lower_body": _region(_TORSO_BOTTOM_FRAC, 1.0),
+            "hands":      _region(_HANDS_TOP_FRAC,   _HANDS_BOTTOM_FRAC),
         }
 
     def assess_person_ppe(
         self,
-        person_bbox: List[float],
-        detected_ppe: List[Dict],
-        frame: Optional[np.ndarray] = None,
-        required_ppe: Optional[Dict] = None
-    ) -> Dict:
+        person_box: list[float],
+        detected_ppe: list[dict[str, Any]],
+    ) -> dict[str, str]:
         """
-        Associates PPE boxes to person head and torso regions.
-        detected_ppe: list of {'label': 'helmet'|'vest'|'gloves'|'mask', 'bbox': [x1, y1, x2, y2], 'confidence': float}
-        Returns:
-            helmet_state: PRESENT / MISSING / NOT_VISIBLE / UNCERTAIN
-            vest_state: PRESENT / MISSING / NOT_VISIBLE / UNCERTAIN
-            helmet_confidence: float
-            vest_confidence: float
-            visibility_quality: GOOD / POOR / OCCLUDED
+        Determine PPE state for a person given a list of detected PPE items.
+
+        Parameters
+        ----------
+        person_box   : [x1, y1, x2, y2]
+        detected_ppe : list of dicts with keys ``label``, ``bbox``, ``confidence``
+
+        Returns
+        -------
+        dict with keys:
+            ``helmet_state``    – "PRESENT" | "MISSING"
+            ``vest_state``      – "PRESENT" | "MISSING"
+            ``gloves_state``    – "PRESENT" | "MISSING"
+            ``mask_state``      – "PRESENT" | "MISSING"
+            ``harness_state``   – "PRESENT" | "MISSING"
         """
-        if required_ppe is None:
-            required_ppe = {"helmet": True, "vest": True, "gloves": False, "mask": False}
+        regions = self.get_person_regions(person_box)
 
-        regions = self.get_person_regions(person_bbox)
-        head_box = regions["head"]
-        torso_box = regions["torso"]
-
-        # Check frame visibility & contrast if frame is available
-        visibility_quality = "GOOD"
-        if frame is not None:
-            h, w = frame.shape[:2]
-            # Check if head is cut off / out of frame
-            if head_box[1] <= 5 or head_box[0] <= 5 or head_box[2] >= (w - 5):
-                visibility_quality = "OCCLUDED"
-            else:
-                x1_c, y1_c, x2_c, y2_c = map(int, [max(0, head_box[0]), max(0, head_box[1]), min(w, head_box[2]), min(h, head_box[3])])
-                if (x2_c > x1_c) and (y2_c > y1_c):
-                    head_crop = frame[y1_c:y2_c, x1_c:x2_c]
-                    if is_low_contrast(head_crop):
-                        visibility_quality = "POOR"
-
-        # 1. Helmet Evaluation
-        helmet_state = "NOT_VISIBLE" if visibility_quality == "OCCLUDED" else "MISSING"
-        helmet_confidence = 0.0
-        best_helmet_overlap = 0.0
+        helmet_present  = False
+        vest_present    = False
+        gloves_present  = False
+        mask_present    = False
+        harness_present = False
 
         for item in detected_ppe:
-            if item["label"] == "helmet":
-                overlap = calculate_box_overlap(head_box, item["bbox"])
-                if overlap > self.overlap_threshold:
-                    if overlap > best_helmet_overlap:
-                        best_helmet_overlap = overlap
-                        helmet_confidence = item.get("confidence", 0.9)
-                        helmet_state = "PRESENT"
+            label = item.get("label", "").lower()
+            bbox  = item.get("bbox", [])
+            if not bbox or len(bbox) != 4:
+                continue
 
-        # 2. Vest Evaluation
-        vest_state = "NOT_VISIBLE" if visibility_quality == "OCCLUDED" else "MISSING"
-        vest_confidence = 0.0
-        best_vest_overlap = 0.0
+            if "helmet" in label or "hard-hat" in label or "hardhat" in label:
+                if calculate_box_overlap(bbox, regions["head"]) >= _OVERLAP_THRESHOLD:
+                    helmet_present = True
 
-        for item in detected_ppe:
-            if item["label"] in ["vest", "safety_vest"]:
-                overlap = calculate_box_overlap(torso_box, item["bbox"])
-                if overlap > self.overlap_threshold:
-                    if overlap > best_vest_overlap:
-                        best_vest_overlap = overlap
-                        vest_confidence = item.get("confidence", 0.88)
-                        vest_state = "PRESENT"
+            if "vest" in label or "hi-vis" in label or "hivis" in label or "safety-vest" in label:
+                if calculate_box_overlap(bbox, regions["torso"]) >= _OVERLAP_THRESHOLD:
+                    vest_present = True
 
-        # Dust/Dim Scene -> Uncertainty logic (PRD Section 14)
-        if visibility_quality == "POOR" and (helmet_state == "MISSING" or vest_state == "MISSING"):
-            # Never alert on dust/blur without certainty
-            if helmet_state == "MISSING":
-                helmet_state = "UNCERTAIN"
-            if vest_state == "MISSING":
-                vest_state = "UNCERTAIN"
+            if "glove" in label:
+                if calculate_box_overlap(bbox, regions["hands"]) >= _OVERLAP_THRESHOLD:
+                    gloves_present = True
+
+            if "mask" in label or "respirator" in label:
+                if calculate_box_overlap(bbox, regions["head"]) >= _OVERLAP_THRESHOLD:
+                    mask_present = True
+
+            if "harness" in label:
+                if calculate_box_overlap(bbox, regions["torso"]) >= _OVERLAP_THRESHOLD:
+                    harness_present = True
+
+        def _state(present: bool) -> str:
+            return "PRESENT" if present else "MISSING"
 
         return {
-            "head_bbox": head_box,
-            "torso_bbox": torso_box,
-            "helmet_state": helmet_state,
-            "helmet_confidence": helmet_confidence,
-            "vest_state": vest_state,
-            "vest_confidence": vest_confidence,
-            "visibility_quality": visibility_quality
+            "helmet_state":  _state(helmet_present),
+            "vest_state":    _state(vest_present),
+            "gloves_state":  _state(gloves_present),
+            "mask_state":    _state(mask_present),
+            "harness_state": _state(harness_present),
         }
