@@ -199,6 +199,26 @@ class SafetyPipeline:
                 if not is_compliant:
                     worker_violations.append(violation_reason)
 
+                # Build Sub-Boxes for PPE equipment (Helmet, Vest)
+                p_h = person_bbox[3] - person_bbox[1]
+                helmet_ok = (ppe_state.get("helmet_state") == "PRESENT")
+                vest_ok = (ppe_state.get("vest_state") == "PRESENT")
+
+                sub_boxes = [
+                    {
+                        "type": "helmet",
+                        "label": "Helmet OK" if helmet_ok else "NO HELMET",
+                        "is_ok": helmet_ok,
+                        "bbox": [float(person_bbox[0]), float(person_bbox[1]), float(person_bbox[2]), float(person_bbox[1] + p_h * 0.32)]
+                    },
+                    {
+                        "type": "vest",
+                        "label": "Vest OK" if vest_ok else "NO VEST",
+                        "is_ok": vest_ok,
+                        "bbox": [float(person_bbox[0]), float(person_bbox[1] + p_h * 0.20), float(person_bbox[2]), float(person_bbox[1] + p_h * 0.75)]
+                    }
+                ]
+
                 # Bounding Box Telemetry
                 frame_bboxes.append({
                     "tracker_id": tracker_id,
@@ -206,7 +226,8 @@ class SafetyPipeline:
                     "is_compliant": is_compliant,
                     "status_label": status_label,
                     "zone_name": zone_name,
-                    "ppe_state": ppe_state
+                    "ppe_state": ppe_state,
+                    "sub_boxes": sub_boxes
                 })
 
                 # Compute Latency Metric
@@ -288,12 +309,35 @@ class SafetyPipeline:
                     if on_alert_callback:
                         on_alert_callback(confirmed_event_payload)
 
-                # 8. Draw Bounding Box & Bounding Label on Annotated Frame
+                # 8. Draw Bounding Box & Bounding Sub-Boxes on OpenCV Frame
                 x1, y1, x2, y2 = map(int, person_bbox)
-                color = (0, 230, 118) if is_compliant else (0, 40, 245)  # Green if Compliant, Red if Violation
-                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+                main_color = (0, 230, 118) if is_compliant else (0, 40, 245)  # Green if Compliant, Red if Violation
+                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), main_color, 2)
                 label_str = f"{tracker_id} | {status_label}"
-                cv2.putText(annotated_frame, label_str, (x1, max(y1 - 8, 15)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
+                cv2.putText(annotated_frame, label_str, (x1, max(y1 - 8, 15)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, main_color, 2)
+
+                # Sub-Box 1: Helmet / Head Region
+                hx1, hy1, hx2, hy2 = x1, y1, x2, min(y2, y1 + int(p_h * 0.32))
+                helmet_color = (255, 235, 0) if helmet_ok else (0, 40, 245)
+                cv2.rectangle(annotated_frame, (hx1, hy1), (hx2, hy2), helmet_color, 1)
+                cv2.putText(annotated_frame, "Helmet: OK" if helmet_ok else "NO HELMET", (hx1 + 2, hy1 + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.4, helmet_color, 1)
+
+                # Sub-Box 2: Vest / Torso Region
+                tx1, ty1, tx2, ty2 = x1, y1 + int(p_h * 0.20), x2, min(y2, y1 + int(p_h * 0.75))
+                vest_color = (0, 255, 128) if vest_ok else (0, 40, 245)
+                cv2.rectangle(annotated_frame, (tx1, ty1), (tx2, ty2), vest_color, 1)
+                cv2.putText(annotated_frame, "Vest: OK" if vest_ok else "NO VEST", (tx1 + 2, ty1 + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.4, vest_color, 1)
+
+            # Draw Hazard Smoke & Fire Bounding Boxes
+            for s_box in detections.get("smoke_boxes", []):
+                sx1, sy1, sx2, sy2 = map(int, s_box["bbox"])
+                cv2.rectangle(annotated_frame, (sx1, sy1), (sx2, sy2), (200, 200, 200), 2)
+                cv2.putText(annotated_frame, "HAZARD: SMOKE", (sx1, max(sy1 - 6, 15)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220, 220, 220), 2)
+
+            for f_box in detections.get("fire_boxes", []):
+                fx1, fy1, fx2, fy2 = map(int, f_box["bbox"])
+                cv2.rectangle(annotated_frame, (fx1, fy1), (fx2, fy2), (0, 100, 255), 2)
+                cv2.putText(annotated_frame, "HAZARD: FIRE", (fx1, max(fy1 - 6, 15)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 140, 255), 2)
 
             inference_ms = (time.time() - start_time) * 1000.0
             is_frame_compliant = (len(worker_violations) == 0)
