@@ -20,9 +20,9 @@ class SafetyVisionDetector:
         except Exception as e:
             logger.warning(f"Failed to load YOLO model ({e}). Will use fallback person detector.")
 
-    def detect_frame(self, frame: np.ndarray, conf_threshold: float = 0.35) -> Dict:
+    def detect_frame(self, frame: np.ndarray, conf_threshold: float = 0.25) -> Dict:
         """
-        Runs object detection on frame.
+        Runs object detection on frame using YOLOv8 + fallback contour & HSV PPE signature analysis.
         Outputs:
             persons: list of {'bbox': [x1, y1, x2, y2], 'confidence': float}
             ppe_items: list of {'label': 'helmet'|'vest'|'gloves'|'mask', 'bbox': [x1, y1, x2, y2], 'confidence': float}
@@ -67,21 +67,19 @@ class SafetyVisionDetector:
         # If no neural persons found (e.g. synthetic simulation or extreme lighting), detect human shapes by contour/aspect ratio
         if len(persons) == 0:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            # Find contours against dark background
-            _, thresh = cv2.threshold(gray, 55, 255, cv2.THRESH_BINARY)
+            _, thresh = cv2.threshold(gray, 45, 255, cv2.THRESH_BINARY)
             contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             for cnt in contours:
                 cx, cy, cw, ch = cv2.boundingRect(cnt)
                 aspect = ch / max(1, cw)
-                # Human standing/walking profile: height 90-350, width 30-150, aspect ratio 1.2-4.5
-                if 90 <= ch <= 350 and 30 <= cw <= 150 and 1.2 <= aspect <= 4.5:
+                # Human profile: height 80-450, width 25-200, aspect ratio 1.1-4.8
+                if 80 <= ch <= 450 and 25 <= cw <= 200 and 1.1 <= aspect <= 4.8:
                     persons.append({
                         "bbox": [float(cx), float(cy), float(cx + cw), float(cy + ch)],
                         "confidence": 0.88
                     })
 
         # Optical analysis for safety equipment on detected persons
-        # In case generic YOLOv8n only outputs person, we analyze head (helmet) & torso (vest)
         for person in persons:
             px1, py1, px2, py2 = person["bbox"]
             p_height = py2 - py1
@@ -89,7 +87,7 @@ class SafetyVisionDetector:
 
             # Head region analysis (top 30%)
             hy1 = max(0, int(py1))
-            hy2 = min(h, int(py1 + p_height * 0.30))
+            hy2 = min(h, int(py1 + p_height * 0.32))
             hx1 = max(0, int(px1))
             hx2 = min(w, int(px2))
 
@@ -102,9 +100,9 @@ class SafetyVisionDetector:
                         "confidence": 0.88
                     })
 
-            # Torso region analysis (25% to 70%)
-            ty1 = max(0, int(py1 + p_height * 0.25))
-            ty2 = min(h, int(py1 + p_height * 0.70))
+            # Torso region analysis (20% to 75%)
+            ty1 = max(0, int(py1 + p_height * 0.20))
+            ty2 = min(h, int(py1 + p_height * 0.75))
             tx1 = max(0, int(px1))
             tx2 = min(w, int(px2))
 
@@ -136,40 +134,44 @@ class SafetyVisionDetector:
         Detects industrial safety helmet (yellow, white, blue, red hardhat)
         via HSV color range & saturation analysis.
         """
-        if crop.size == 0 or crop.shape[0] < 10 or crop.shape[1] < 10:
+        if crop.size == 0 or crop.shape[0] < 8 or crop.shape[1] < 8:
             return False
 
         hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-        # Yellow hardhat HSV: H [18, 38], S [90, 255], V [100, 255]
-        yellow_mask = cv2.inRange(hsv, np.array([18, 90, 100]), np.array([38, 255, 255]))
-        # White hardhat HSV: S < 40, V > 180
-        white_mask = cv2.inRange(hsv, np.array([0, 0, 180]), np.array([180, 50, 255]))
-        # Blue hardhat HSV: H [95, 130], S [80, 255], V [80, 255]
-        blue_mask = cv2.inRange(hsv, np.array([95, 80, 80]), np.array([130, 255, 255]))
+        # Yellow hardhat HSV: H [15, 40], S [60, 255], V [80, 255]
+        yellow_mask = cv2.inRange(hsv, np.array([15, 60, 80]), np.array([40, 255, 255]))
+        # White hardhat HSV: S < 50, V > 160
+        white_mask = cv2.inRange(hsv, np.array([0, 0, 160]), np.array([180, 50, 255]))
+        # Blue hardhat HSV: H [90, 135], S [60, 255], V [60, 255]
+        blue_mask = cv2.inRange(hsv, np.array([90, 60, 60]), np.array([135, 255, 255]))
+        # Red hardhat HSV: H [0, 12] or H [165, 180]
+        red_mask1 = cv2.inRange(hsv, np.array([0, 80, 80]), np.array([12, 255, 255]))
+        red_mask2 = cv2.inRange(hsv, np.array([165, 80, 80]), np.array([180, 255, 255]))
+        red_mask = cv2.bitwise_or(red_mask1, red_mask2)
 
         total_pixels = crop.shape[0] * crop.shape[1]
-        helmet_pixels = cv2.countNonZero(yellow_mask) + cv2.countNonZero(white_mask) + cv2.countNonZero(blue_mask)
+        helmet_pixels = cv2.countNonZero(yellow_mask) + cv2.countNonZero(white_mask) + cv2.countNonZero(blue_mask) + cv2.countNonZero(red_mask)
 
-        return (helmet_pixels / total_pixels) > 0.18
+        return (helmet_pixels / total_pixels) > 0.08
 
     def _has_vest_signature(self, crop: np.ndarray) -> bool:
         """
         Detects hi-vis safety vest (fluorescent yellow-green or neon orange)
         with reflective tape pattern.
         """
-        if crop.size == 0 or crop.shape[0] < 15 or crop.shape[1] < 15:
+        if crop.size == 0 or crop.shape[0] < 10 or crop.shape[1] < 10:
             return False
 
         hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-        # Neon fluorescent yellow-green: H [25, 55], S [90, 255], V [100, 255]
-        neon_mask = cv2.inRange(hsv, np.array([25, 90, 100]), np.array([55, 255, 255]))
-        # Hi-vis safety orange: H [5, 22], S [120, 255], V [120, 255]
-        orange_mask = cv2.inRange(hsv, np.array([5, 120, 120]), np.array([22, 255, 255]))
+        # Neon fluorescent yellow-green: H [20, 60], S [60, 255], V [80, 255]
+        neon_mask = cv2.inRange(hsv, np.array([20, 60, 80]), np.array([60, 255, 255]))
+        # Hi-vis safety orange: H [3, 24], S [80, 255], V [80, 255]
+        orange_mask = cv2.inRange(hsv, np.array([3, 80, 80]), np.array([24, 255, 255]))
 
         total_pixels = crop.shape[0] * crop.shape[1]
         vest_pixels = cv2.countNonZero(neon_mask) + cv2.countNonZero(orange_mask)
 
-        return (vest_pixels / total_pixels) > 0.20
+        return (vest_pixels / total_pixels) > 0.10
 
     def _detect_hazards_optical(self, frame: np.ndarray) -> Tuple[List[Dict], List[Dict]]:
         """Optical detection of smoke (gray/turbulent cloud) and fire (bright orange/red flame)."""
