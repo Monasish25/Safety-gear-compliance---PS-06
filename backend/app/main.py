@@ -95,6 +95,10 @@ async def generate_demo_simulation(background_tasks: BackgroundTasks):
     # Generate video synchronously
     generate_demo_video(output_path, duration_sec=16, fps=25)
 
+    # Trigger vision pipeline processing for live WebSocket telemetry, alerts & bounding box rendering
+    from app.api.videos import execute_vision_pipeline_async
+    background_tasks.add_task(execute_vision_pipeline_async, video_id, Path(output_path), "CAM_01")
+
     return {
         "status": "QUEUED",
         "video_id": video_id,

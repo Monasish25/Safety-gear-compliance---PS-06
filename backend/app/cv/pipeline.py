@@ -407,6 +407,12 @@ class SafetyPipeline:
         on_frame_callback: Optional[Callable[[Dict], None]] = None
     ) -> Dict:
         """Fallback synthetic video frame generator when physical video file is unavailable."""
+        out_dir = settings.LOCAL_STORAGE_DIR / "videos"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        annotated_path = str(out_dir / f"annotated_{video_id}.mp4")
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        out_writer = cv2.VideoWriter(annotated_path, fourcc, 15.0, (1280, 720))
+
         dummy_frame = np.zeros((720, 1280, 3), dtype=np.uint8)
         cv2.rectangle(dummy_frame, (50, 50), (1230, 670), (40, 40, 40), -1)
         cv2.putText(dummy_frame, "VISION AI SIMULATED FACTORY BAY", (100, 100), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
@@ -414,34 +420,41 @@ class SafetyPipeline:
         violations = 0
         now = time.time()
 
-        for step in range(1, 51):
-            time.sleep(0.04)
-            sim_time = now + (step * 0.2)
-            px1 = 100 + (step * 15)
-            py1 = 200
-            px2 = px1 + 120
-            py2 = py1 + 280
+        try:
+            for step in range(1, 51):
+                time.sleep(0.04)
+                sim_time = now + (step * 0.2)
+                px1 = 100 + (step * 15)
+                py1 = 200
+                px2 = px1 + 120
+                py2 = py1 + 280
 
-            frame = dummy_frame.copy()
-            cv2.rectangle(frame, (px1, py1), (px2, py2), (180, 180, 180), -1)
+                frame = dummy_frame.copy()
+                cv2.rectangle(frame, (px1, py1), (px2, py2), (180, 180, 180), -1)
 
-            annotated, confirmed = self.process_frame(
-                frame,
-                timestamp=sim_time,
-                frame_idx=step,
-                persist_db=True,
-                on_alert_callback=on_alert_callback,
-                on_frame_callback=on_frame_callback
-            )
-            violations += len(confirmed)
+                annotated, confirmed = self.process_frame(
+                    frame,
+                    timestamp=sim_time,
+                    frame_idx=step,
+                    persist_db=True,
+                    on_alert_callback=on_alert_callback,
+                    on_frame_callback=on_frame_callback
+                )
+                violations += len(confirmed)
 
-            if on_progress_callback:
-                on_progress_callback(step / 50.0, step, violations)
+                if out_writer and out_writer.isOpened():
+                    out_writer.write(annotated)
+
+                if on_progress_callback:
+                    on_progress_callback(step / 50.0, step, violations)
+        finally:
+            if out_writer:
+                out_writer.release()
 
         return {
             "total_frames": 50,
             "processed_frames": 50,
             "violation_count": violations,
-            "annotated_video_path": None
+            "annotated_video_path": annotated_path
         }
 

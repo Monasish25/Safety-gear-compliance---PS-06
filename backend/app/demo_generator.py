@@ -18,10 +18,10 @@ def generate_demo_video(output_path: str, duration_sec: int = 18, fps: int = 25)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     
-    fourcc = cv2.VideoWriter_fourcc(*"avc1")
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
     if not writer.isOpened():
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        fourcc = cv2.VideoWriter_fourcc(*"avc1")
         writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     # Base background (Dark industrial warehouse floor)
