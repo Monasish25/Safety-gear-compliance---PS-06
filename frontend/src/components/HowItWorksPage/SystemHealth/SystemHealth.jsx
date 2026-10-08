@@ -1,1 +1,0 @@
-export default function SystemHealth(){return <section className="how-health how-glass" aria-label="System health"><span><i/> EDGE CLUSTER: 12/12 ONLINE</span><span>GPU TEMP: <b>62°C</b></span><span>VRAM: <b>11.2/16 GB</b></span><span>UPTIME: <b>99.98%</b></span></section>}

@@ -1,46 +1,61 @@
 import time
-from typing import Dict, List, Optional, Tuple
+import logging
+from typing import Dict, List, Optional, Tuple, Any
 from app.core.config import settings
 from app.core.cache import cache
 
+logger = logging.getLogger("safegear.temporal_engine")
+
+
 class TemporalConfirmationEngine:
+    """
+    Temporal Confirmation & Cooldown Engine.
+    Filters out transient computer vision errors (occlusions, bad angles, lighting glitches).
+    Requires N consecutive non-compliant frames before confirming an official alert,
+    and enforces a cooldown window (e.g. 5 minutes / 300s) to prevent duplicate alert fatigue.
+    """
+
     def __init__(
         self,
+        consecutive_frames_required: int = 5,  # N=5 consecutive frames (~1 sec at 5 FPS)
+        cooldown_sec: int = 300,                # 5-minute (300s) alert cooldown
         helmet_confirm_sec: float = settings.CONFIRMATION_TIME_HELMET_SEC,
         vest_confirm_sec: float = settings.CONFIRMATION_TIME_VEST_SEC,
-        cooldown_sec: int = settings.ALERT_COOLDOWN_SEC
     ):
+        self.consecutive_frames_required = consecutive_frames_required
+        self.cooldown_sec = cooldown_sec
         self.helmet_confirm_sec = helmet_confirm_sec
         self.vest_confirm_sec = vest_confirm_sec
-        self.cooldown_sec = cooldown_sec
 
-        # In-memory tracking of violation start times per track
-        # {track_id: {"helmet_missing_since": float, "vest_missing_since": float}}
-        self.track_timers: Dict[str, Dict[str, Optional[float]]] = {}
+        # In-memory tracking of consecutive non-compliant frame counts and timing per track ID
+        # Structure: {track_id: {"helmet": {"consecutive_count": int, "missing_since": float}, ...}}
+        self.track_counters: Dict[str, Dict[str, Any]] = {}
 
     def _get_fingerprint(self, camera_id: str, zone_id: str, track_id: str, event_type: str) -> str:
+        """Generates a unique fingerprint for alert deduplication and cooldown tracking."""
         return f"{camera_id}:{zone_id}:{track_id}:{event_type}"
 
     def compute_severity(self, event_type: str, zone_risk: str) -> str:
-        """Computes alert severity based on PRD Section 17."""
-        if event_type == "FIRE_DETECTED":
-            return "CRITICAL"
-        if event_type == "SMOKE_DETECTED":
-            if zone_risk.upper() in ["CRITICAL", "HIGH"]:
-                return "CRITICAL"
-            return "HIGH"
-        
-        # Missing Helmet or Vest
-        if zone_risk.upper() == "CRITICAL":
-            return "CRITICAL"
-        elif zone_risk.upper() == "HIGH":
-            return "HIGH"
-        elif zone_risk.upper() == "MEDIUM":
-            return "MEDIUM"
-        else:
-            return "LOW"
+        """Computes alert severity based on event type and zone risk level."""
+        event_upper = event_type.upper()
+        risk_upper = zone_risk.upper()
 
-    def evaluate_worker_ppe(
+        if "FIRE" in event_upper:
+            return "critical"
+        if "SMOKE" in event_upper:
+            return "critical" if risk_upper in ["CRITICAL", "HIGH"] else "high"
+
+        # Missing Helmet or Vest
+        if risk_upper == "CRITICAL":
+            return "critical"
+        elif risk_upper == "HIGH":
+            return "high"
+        elif risk_upper == "MEDIUM":
+            return "medium"
+        else:
+            return "low"
+
+    def evaluate_frame_compliance(
         self,
         camera_id: str,
         zone: Optional[Dict],
@@ -50,43 +65,60 @@ class TemporalConfirmationEngine:
         current_time: Optional[float] = None
     ) -> List[Dict]:
         """
-        Evaluates temporal confirmation for worker PPE violations.
-        Returns list of confirmed events to trigger (if any).
+        Evaluates frame-level worker PPE compliance state against consecutive frame persistence rule.
+        
+        Args:
+            camera_id (str): Associated camera identifier.
+            zone (Dict): Zone details dict containing 'id', 'name', 'risk_level'.
+            track_id (str): Anonymous worker tracker ID (e.g. "CAM_01_W_017").
+            ppe_state (Dict): Dict containing 'helmet_state', 'vest_state', 'goggles_state'.
+            ppe_rules (Dict): Dict defining required PPE for the zone.
+            current_time (float): Optional timestamp float.
+
+        Returns:
+            List[Dict]: List of confirmed alert objects (if consecutive frame threshold N is met & not in cooldown).
         """
         if current_time is None:
             current_time = time.time()
 
-        if zone is None:
-            # Person is not in a monitored zone
-            self.track_timers.pop(track_id, None)
+        if not zone:
+            # Person not in a registered zone; reset temporal counters
+            self.track_counters.pop(track_id, None)
             return []
 
-        zone_id = zone["id"]
+        zone_id = zone.get("id", "ZONE_GENERAL")
         zone_risk = zone.get("risk_level", "Medium")
 
-        if track_id not in self.track_timers:
-            self.track_timers[track_id] = {
-                "helmet_missing_since": None,
-                "vest_missing_since": None
+        if track_id not in self.track_counters:
+            self.track_counters[track_id] = {
+                "helmet": {"consecutive_count": 0, "missing_since": None},
+                "vest": {"consecutive_count": 0, "missing_since": None},
+                "goggles": {"consecutive_count": 0, "missing_since": None},
             }
 
-        timers = self.track_timers[track_id]
+        counters = self.track_counters[track_id]
+        rules = ppe_rules or {"helmet_required": True, "vest_required": True}
         confirmed_alerts = []
 
-        # Helmet check
-        helmet_required = ppe_rules.get("helmet_required", True) if ppe_rules else True
-        h_state = ppe_state.get("helmet_state", "PRESENT")
-
-        if helmet_required:
+        # -------------------------------------------------------------
+        # 1. Helmet Consecutive Frame & Cooldown Evaluation
+        # -------------------------------------------------------------
+        if rules.get("helmet_required", True):
+            h_state = ppe_state.get("helmet_state", "PRESENT")
             if h_state == "MISSING":
-                if timers["helmet_missing_since"] is None:
-                    timers["helmet_missing_since"] = current_time
-                duration = current_time - timers["helmet_missing_since"]
+                counters["helmet"]["consecutive_count"] += 1
+                if counters["helmet"]["missing_since"] is None:
+                    counters["helmet"]["missing_since"] = current_time
 
-                if duration >= self.helmet_confirm_sec:
-                    fp = self._get_fingerprint(camera_id, zone_id, track_id, "MISSING_HELMET")
-                    if not cache.is_in_cooldown(fp):
-                        cache.set_cooldown(fp, self.cooldown_sec)
+                # Check if N consecutive non-compliant frames reached
+                if counters["helmet"]["consecutive_count"] >= self.consecutive_frames_required:
+                    fingerprint = self._get_fingerprint(camera_id, zone_id, track_id, "MISSING_HELMET")
+                    
+                    # Cooldown Check (5 minutes / 300s)
+                    if not cache.is_in_cooldown(fingerprint):
+                        cache.set_cooldown(fingerprint, duration_sec=self.cooldown_sec)
+                        duration = current_time - counters["helmet"]["missing_since"]
+                        
                         confirmed_alerts.append({
                             "event_type": "MISSING_HELMET",
                             "severity": self.compute_severity("MISSING_HELMET", zone_risk),
@@ -94,33 +126,37 @@ class TemporalConfirmationEngine:
                             "zone_id": zone_id,
                             "zone_name": zone.get("name", zone_id),
                             "worker_track_id": track_id,
-                            "confidence": 0.89,
+                            "consecutive_frames": counters["helmet"]["consecutive_count"],
                             "duration_sec": round(duration, 1),
                             "metadata": {
+                                "consecutive_non_compliant_frames": counters["helmet"]["consecutive_count"],
                                 "violation_duration_sec": round(duration, 1),
-                                "required_item": "helmet",
-                                "detected_state": "MISSING",
-                                "zone_risk": zone_risk
+                                "cooldown_sec": self.cooldown_sec
                             }
                         })
-            elif h_state == "PRESENT":
-                timers["helmet_missing_since"] = None
-            # If NOT_VISIBLE or UNCERTAIN, do NOT reset timer, but do NOT trigger alert yet (extend observation)
+                        logger.info(f"Confirmed alert MISSING_HELMET for {track_id} after {counters['helmet']['consecutive_count']} consecutive frames.")
+            else:
+                # Reset counter on compliant or occluded frame to filter out single-frame errors
+                counters["helmet"]["consecutive_count"] = 0
+                counters["helmet"]["missing_since"] = None
 
-        # Vest check
-        vest_required = ppe_rules.get("vest_required", True) if ppe_rules else True
-        v_state = ppe_state.get("vest_state", "PRESENT")
-
-        if vest_required:
+        # -------------------------------------------------------------
+        # 2. Vest Consecutive Frame & Cooldown Evaluation
+        # -------------------------------------------------------------
+        if rules.get("vest_required", True):
+            v_state = ppe_state.get("vest_state", "PRESENT")
             if v_state == "MISSING":
-                if timers["vest_missing_since"] is None:
-                    timers["vest_missing_since"] = current_time
-                duration = current_time - timers["vest_missing_since"]
+                counters["vest"]["consecutive_count"] += 1
+                if counters["vest"]["missing_since"] is None:
+                    counters["vest"]["missing_since"] = current_time
 
-                if duration >= self.vest_confirm_sec:
-                    fp = self._get_fingerprint(camera_id, zone_id, track_id, "MISSING_VEST")
-                    if not cache.is_in_cooldown(fp):
-                        cache.set_cooldown(fp, self.cooldown_sec)
+                if counters["vest"]["consecutive_count"] >= self.consecutive_frames_required:
+                    fingerprint = self._get_fingerprint(camera_id, zone_id, track_id, "MISSING_VEST")
+                    
+                    if not cache.is_in_cooldown(fingerprint):
+                        cache.set_cooldown(fingerprint, duration_sec=self.cooldown_sec)
+                        duration = current_time - counters["vest"]["missing_since"]
+                        
                         confirmed_alerts.append({
                             "event_type": "MISSING_VEST",
                             "severity": self.compute_severity("MISSING_VEST", zone_risk),
@@ -128,82 +164,20 @@ class TemporalConfirmationEngine:
                             "zone_id": zone_id,
                             "zone_name": zone.get("name", zone_id),
                             "worker_track_id": track_id,
-                            "confidence": 0.86,
+                            "consecutive_frames": counters["vest"]["consecutive_count"],
                             "duration_sec": round(duration, 1),
                             "metadata": {
+                                "consecutive_non_compliant_frames": counters["vest"]["consecutive_count"],
                                 "violation_duration_sec": round(duration, 1),
-                                "required_item": "vest",
-                                "detected_state": "MISSING",
-                                "zone_risk": zone_risk
+                                "cooldown_sec": self.cooldown_sec
                             }
                         })
-            elif v_state == "PRESENT":
-                timers["vest_missing_since"] = None
+                        logger.info(f"Confirmed alert MISSING_VEST for {track_id} after {counters['vest']['consecutive_count']} consecutive frames.")
+            else:
+                counters["vest"]["consecutive_count"] = 0
+                counters["vest"]["missing_since"] = None
 
         return confirmed_alerts
 
-    def evaluate_hazards(
-        self,
-        camera_id: str,
-        zone: Optional[Dict],
-        smoke_detected: bool,
-        fire_detected: bool,
-        current_time: Optional[float] = None
-    ) -> List[Dict]:
-        """
-        Evaluates temporal confirmation for Smoke (>= 3 of 5) and Fire (>= 2 of 3).
-        """
-        if current_time is None:
-            current_time = time.time()
-
-        zone_id = zone["id"] if zone else "ZONE_GENERAL"
-        zone_risk = zone.get("risk_level", "High") if zone else "High"
-        zone_name = zone.get("name", "Factory Area") if zone else "General Area"
-
-        confirmed_hazards = []
-
-        # Smoke evaluation (>= 3 of last 5)
-        smoke_key = f"hazard_history:{camera_id}:{zone_id}:smoke"
-        cache.push_observation(smoke_key, 1 if smoke_detected else 0, max_len=5)
-        recent_smoke = cache.get_recent_observations(smoke_key, count=5)
-        if len(recent_smoke) >= 3 and sum(recent_smoke) >= 3:
-            fp = self._get_fingerprint(camera_id, zone_id, "HAZARD", "SMOKE_DETECTED")
-            if not cache.is_in_cooldown(fp):
-                cache.set_cooldown(fp, self.cooldown_sec)
-                confirmed_hazards.append({
-                    "event_type": "SMOKE_DETECTED",
-                    "severity": self.compute_severity("SMOKE_DETECTED", zone_risk),
-                    "camera_id": camera_id,
-                    "zone_id": zone_id,
-                    "zone_name": zone_name,
-                    "worker_track_id": None,
-                    "confidence": 0.91,
-                    "metadata": {
-                        "observation_ratio": f"{sum(recent_smoke)}/5",
-                        "zone_risk": zone_risk
-                    }
-                })
-
-        # Fire evaluation (>= 2 of last 3)
-        fire_key = f"hazard_history:{camera_id}:{zone_id}:fire"
-        cache.push_observation(fire_key, 1 if fire_detected else 0, max_len=3)
-        recent_fire = cache.get_recent_observations(fire_key, count=3)
-        if len(recent_fire) >= 2 and sum(recent_fire) >= 2:
-            fp = self._get_fingerprint(camera_id, zone_id, "HAZARD", "FIRE_DETECTED")
-            if not cache.is_in_cooldown(fp):
-                cache.set_cooldown(fp, self.cooldown_sec)
-                confirmed_hazards.append({
-                    "event_type": "FIRE_DETECTED",
-                    "severity": self.compute_severity("FIRE_DETECTED", zone_risk),
-                    "camera_id": camera_id,
-                    "zone_id": zone_id,
-                    "zone_name": zone_name,
-                    "worker_track_id": None,
-                    "confidence": 0.95,
-                    "metadata": {
-                        "observation_ratio": f"{sum(recent_fire)}/3",
-                        "zone_risk": zone_risk
-                    }
-                })
-
-        return confirmed_hazards
+    # Backward compatibility helper
+    evaluate_worker_ppe = evaluate_frame_compliance

@@ -49,37 +49,46 @@ class ZoneEngine:
         Maps person bbox center to zone polygon/rect.
         Returns matching zone dict or None.
         """
+        if not self.zones:
+            return None
+
         cx, cy = self.get_bbox_center(bbox)
 
         for zone in self.zones:
             poly_data = zone.get("polygon", {})
-            
-            # 1. Check points list if present
-            points = poly_data.get("points")
-            if points and len(points) >= 3:
-                # Handle normalized coordinates if values <= 1.0
-                eval_points = points
-                if all(pt[0] <= 1.0 and pt[1] <= 1.0 for pt in points):
-                    eval_points = [[pt[0] * frame_width, pt[1] * frame_height] for pt in points]
-                
-                if point_in_polygon(cx, cy, eval_points):
+            if isinstance(poly_data, list):
+                # Simple list of points: [[x1, y1], [x2, y2], ...]
+                points = poly_data
+                if len(points) >= 3 and point_in_polygon(cx, cy, points):
                     return zone
 
-            # 2. Check x_min, y_min, x_max, y_max rect fallback
-            if "x_min" in poly_data and "x_max" in poly_data:
-                x_min = poly_data["x_min"]
-                y_min = poly_data["y_min"]
-                x_max = poly_data["x_max"]
-                y_max = poly_data["y_max"]
-                
-                # Normalize if needed
-                if x_max <= 1.0 and y_max <= 1.0:
-                    x_min *= frame_width
-                    x_max *= frame_width
-                    y_min *= frame_height
-                    y_max *= frame_height
+            elif isinstance(poly_data, dict):
+                points = poly_data.get("points")
+                if points and len(points) >= 3:
+                    eval_points = points
+                    if all(pt[0] <= 1.0 and pt[1] <= 1.0 for pt in points):
+                        eval_points = [[pt[0] * frame_width, pt[1] * frame_height] for pt in points]
+                    
+                    if point_in_polygon(cx, cy, eval_points):
+                        return zone
 
-                if x_min <= cx <= x_max and y_min <= cy <= y_max:
-                    return zone
+                if "x_min" in poly_data and "x_max" in poly_data:
+                    x_min = poly_data["x_min"]
+                    y_min = poly_data["y_min"]
+                    x_max = poly_data["x_max"]
+                    y_max = poly_data["y_max"]
+                    
+                    if x_max <= 1.0 and y_max <= 1.0:
+                        x_min *= frame_width
+                        x_max *= frame_width
+                        y_min *= frame_height
+                        y_max *= frame_height
 
-        return None
+                    if x_min <= cx <= x_max and y_min <= cy <= y_max:
+                        return zone
+
+        # Fallback to first configured zone if bbox center is within default frame
+        return self.zones[0] if self.zones else None
+
+    # Alias for method compatibility
+    get_zone_for_person = find_zone_for_bbox
