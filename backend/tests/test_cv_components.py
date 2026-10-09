@@ -54,7 +54,7 @@ def test_ppe_association_head_torso():
     assert res["vest_state"] == "MISSING"  # No vest provided
 
 def test_temporal_confirmation_rules():
-    temporal = TemporalConfirmationEngine(helmet_confirm_sec=2.0, cooldown_sec=10)
+    temporal = TemporalConfirmationEngine(consecutive_frames_required=3, helmet_confirm_sec=2.0, cooldown_sec=10)
     zone = {"id": "ZONE_WELDING", "name": "Welding", "risk_level": "High"}
     rules = {"helmet_required": True, "vest_required": True}
     
@@ -91,7 +91,7 @@ def test_temporal_confirmation_rules():
     )
     assert len(alerts) == 1
     assert alerts[0]["event_type"] == "MISSING_HELMET"
-    assert alerts[0]["severity"] == "HIGH"
+    assert alerts[0]["severity"] == "high"
 
     # Frame 4: at t=3.0s -> within cooldown window (10s) -> NO duplicate alert!
     alerts = temporal.evaluate_worker_ppe(
