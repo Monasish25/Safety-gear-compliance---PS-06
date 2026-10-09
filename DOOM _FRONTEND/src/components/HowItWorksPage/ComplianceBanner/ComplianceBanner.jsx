@@ -1,0 +1,1 @@
+export default function ComplianceBanner(){return <section className="how-compliance how-glass" aria-label="System compliance and hardware"><b><i/> ALL PIPELINES VERIFIED</b><span>ISO-27001</span><span>IEC-61508 SIL-3</span><p>HARDWARE BUS: PCIE 5.0 x16 DUAL A100 DEPLOYMENT</p></section>}

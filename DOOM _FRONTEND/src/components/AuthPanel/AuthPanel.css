@@ -1,0 +1,357 @@
+.auth-stage {
+  width: min(480px, calc(100vw - 28px));
+  margin: auto;
+}
+
+.auth-panel {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .28);
+  border-radius: 24px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .11), rgba(255, 255, 255, .035) 48%, rgba(255, 255, 255, .075));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .24), inset 0 -1px 0 rgba(255, 255, 255, .08), 0 24px 75px rgba(0, 0, 0, .32);
+  color: #f7f9fc;
+  backdrop-filter: blur(34px) saturate(170%);
+  -webkit-backdrop-filter: blur(34px) saturate(170%);
+}
+
+.auth-panel::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 0, rgba(255, 255, 255, .12), transparent 48%),
+    linear-gradient(135deg, rgba(255, 255, 255, .055), transparent 42%);
+  content: '';
+  pointer-events: none;
+}
+
+.auth-panel__glow {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.auth-panel__content {
+  padding: 27px 36px 25px;
+}
+
+.auth-page-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0 auto 20px;
+  color: rgba(255, 255, 255, .94);
+  filter: drop-shadow(0 3px 15px rgba(255, 255, 255, .14));
+}
+
+.auth-page-brand svg {
+  width: 68px;
+  height: 76px;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 0 12px rgba(53, 215, 255, .45));
+}
+
+.auth-page-brand span {
+  display: flex;
+  gap: 5px;
+  color: rgba(255, 255, 255, .96);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .21em;
+  line-height: 1;
+}
+
+.auth-page-brand strong {
+  color: rgba(255, 255, 255, .72);
+  font-weight: 600;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0 0 23px;
+  border-bottom: 1px solid rgba(255, 255, 255, .2);
+}
+
+.auth-tabs__tab {
+  position: relative;
+  min-height: 47px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, .58);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: color .2s ease;
+}
+
+.auth-tabs__tab::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  transform: scaleX(0);
+  transform-origin: center;
+  background: rgba(255, 255, 255, .94);
+  content: '';
+  transition: transform .25s ease;
+}
+
+.auth-tabs__tab.is-active {
+  color: #fff;
+}
+
+.auth-tabs__tab.is-active::after {
+  transform: scaleX(1);
+}
+
+.auth-form {
+  display: grid;
+  gap: 17px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 8px;
+  color: rgba(255, 255, 255, .92);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.auth-input-wrap,
+.auth-password {
+  position: relative;
+  display: block;
+}
+
+.auth-field input {
+  width: 100%;
+  height: 58px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 13px;
+  outline: none;
+  background: rgba(255, 255, 255, .045);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, .1);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+
+.auth-field input::placeholder {
+  color: rgba(255, 255, 255, .48);
+}
+
+.auth-field input:focus {
+  border-color: rgba(255, 255, 255, .66);
+  background: rgba(255, 255, 255, .08);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .09), inset 0 1px 4px rgba(0, 0, 0, .08);
+}
+
+.auth-input-wrap input,
+.auth-password input {
+  padding-left: 48px;
+}
+
+.auth-input-wrap > svg,
+.auth-password > svg {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 17px;
+  width: 21px;
+  height: 21px;
+  transform: translateY(-50%);
+  fill: none;
+  stroke: #173b5f;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 1px rgba(255,255,255,.75));
+  pointer-events: none;
+}
+
+.auth-password input {
+  padding-right: 48px;
+}
+
+/* Hide the browser's built-in reveal button; the form has its own accessible eye toggle. */
+.auth-password input::-ms-reveal,
+.auth-password input::-ms-clear,
+.auth-password input::-webkit-credentials-auto-fill-button {
+  display: none;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.auth-password__toggle {
+  position: absolute;
+  top: 50%;
+  right: 11px;
+  display: grid;
+  width: 31px;
+  height: 31px;
+  padding: 6px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #173b5f;
+  cursor: pointer;
+}
+
+.auth-password__toggle svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.auth-password__toggle:hover {
+  background: rgba(53, 215, 255, .12);
+  color: #0c2c49;
+}
+
+.auth-forgot {
+  justify-self: end;
+  margin-top: -9px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, .84);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.auth-submit {
+  min-height: 58px;
+  margin-top: 4px;
+  border: 1px solid rgba(255, 255, 255, .36);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, .095));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .32), 0 9px 24px rgba(0, 0, 0, .18);
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+}
+
+.auth-submit:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 13px 28px rgba(0, 0, 0, .24);
+}
+
+.auth-footnote,
+.auth-notice {
+  margin: 15px 0 0;
+  color: rgba(255, 255, 255, .55);
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* Keep the account panel comfortable when a large CSS viewport is produced by zooming out. */
+@media (min-width: 2400px) {
+  .auth-stage { width: min(clamp(480px, 30vw, 1500px), calc(100vw - 80px)); }
+  .auth-panel { border-radius: clamp(24px, 1.2vw, 48px); }
+  .auth-panel__content { padding: clamp(27px, 2vw, 72px); }
+  .auth-page-brand { gap: clamp(4px, .35vw, 18px); margin-bottom: clamp(20px, 1.2vw, 52px); }
+  .auth-page-brand svg { width: clamp(68px, 3vw, 140px); height: auto; }
+  .auth-page-brand span { gap: clamp(5px, .35vw, 18px); font-size: clamp(9px, .8vw, 40px); }
+  .auth-tabs { margin-bottom: clamp(23px, 1.2vw, 56px); }
+  .auth-tabs__tab { min-height: clamp(47px, 3vw, 132px); font-size: clamp(16px, .8vw, 40px); }
+  .auth-form { gap: clamp(17px, .85vw, 46px); }
+  .auth-field { gap: clamp(8px, .45vw, 24px); font-size: clamp(14px, .75vw, 38px); }
+  .auth-field input { height: clamp(58px, 3.4vw, 150px); padding-inline: clamp(15px, .9vw, 48px); border-radius: clamp(13px, .8vw, 36px); font-size: clamp(14px, .8vw, 40px); }
+  .auth-input-wrap input, .auth-password input { padding-left: clamp(48px, 3vw, 135px); }
+  .auth-input-wrap > svg, .auth-password > svg { left: clamp(17px, 1.1vw, 52px); width: clamp(21px, 1.4vw, 64px); height: clamp(21px, 1.4vw, 64px); }
+  .auth-password__toggle { right: clamp(11px, .7vw, 34px); width: clamp(31px, 2vw, 88px); height: clamp(31px, 2vw, 88px); }
+  .auth-password__toggle svg { width: 60%; height: 60%; }
+  .auth-forgot { font-size: clamp(12px, .7vw, 34px); }
+  .auth-submit { min-height: clamp(58px, 3.4vw, 150px); font-size: clamp(16px, .8vw, 40px); }
+  .auth-footnote, .auth-notice { font-size: clamp(12px, .68vw, 34px); }
+}
+
+.auth-notice {
+  color: rgba(255, 255, 255, .88);
+}
+
+.auth-submit:focus-visible,
+.auth-tabs__tab:focus-visible,
+.auth-password__toggle:focus-visible,
+.auth-forgot:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, .9);
+  outline-offset: 3px;
+}
+
+@media (max-width: 520px) {
+  .auth-panel__content {
+    padding: 24px clamp(20px, 6vw, 30px) 22px;
+  }
+}
+
+@media (max-height: 760px) {
+  .auth-panel__content {
+    padding-top: 21px;
+    padding-bottom: 19px;
+  }
+
+  .auth-page-brand {
+    margin-bottom: 13px;
+  }
+
+  .auth-page-brand svg {
+    width: 60px;
+    height: 67px;
+  }
+
+  .auth-tabs {
+    margin-bottom: 17px;
+  }
+
+  .auth-field {
+    gap: 6px;
+  }
+
+  .auth-field input {
+    height: 50px;
+  }
+
+  .auth-submit {
+    min-height: 51px;
+  }
+
+}
+
+@media (max-width: 380px) {
+  .auth-stage {
+    width: calc(100vw - 20px);
+  }
+
+  .auth-panel__content {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+}

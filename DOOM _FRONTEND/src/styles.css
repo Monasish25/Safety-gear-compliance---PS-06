@@ -1,0 +1,938 @@
+* {
+  box-sizing: border-box;
+}
+
+@font-face {
+  font-family: "Hello Baby";
+  src: url("/Hello-Baby.otf") format("opentype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Garesin";
+  src: url("/Garesin.otf") format("opentype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: #101a24;
+}
+
+.site-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: clamp(16px, 3.5vh, 34px) 0;
+}
+
+.site-shell--home {
+  display: block;
+  padding: 0;
+}
+
+.site-shell { position: relative; isolation: isolate; }
+
+.theme-switch {
+  --glass-edge: rgba(255, 255, 255, .34);
+  position: fixed;
+  z-index: 50;
+  bottom: 20px;
+  left: 20px;
+  display: block;
+  width: 164px;
+  height: 52px;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.theme__toggle {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.theme__track {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgba(255,255,255,.2), rgba(255,255,255,.055) 48%, rgba(255,255,255,.1));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), inset 0 -8px 18px rgba(4,15,31,.16), 0 8px 28px rgba(0,0,0,.22);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  transition: background .35s ease, border-color .35s ease, box-shadow .35s ease;
+}
+
+.theme__shine {
+  position: absolute;
+  inset: 1px 1px auto;
+  height: 48%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,.22), transparent);
+  pointer-events: none;
+}
+
+.theme__thumb {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.62);
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(255,255,255,.88), rgba(206,232,255,.38));
+  box-shadow: inset 0 1px 2px rgba(255,255,255,.8), 0 2px 9px rgba(0,0,0,.24), 0 0 18px rgba(255,255,255,.24);
+  backdrop-filter: blur(10px);
+  transition: transform .45s cubic-bezier(.2,.8,.2,1), background .35s ease, box-shadow .35s ease;
+}
+
+.theme__icon {
+  position: relative;
+  display: block;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #ffe9a4;
+  box-shadow: 0 0 10px rgba(255,223,131,.8), 0 0 20px rgba(255,223,131,.42);
+  transition: all .35s ease;
+}
+
+.theme__icon::before {
+  position: absolute;
+  inset: -5px;
+  border: 1px solid rgba(255,241,195,.62);
+  border-radius: 50%;
+  content: '';
+  opacity: .8;
+  transition: all .35s ease;
+}
+
+.theme__mode {
+  position: absolute;
+  top: 50%;
+  left: 53px;
+  transform: translateY(-50%);
+  color: rgba(255,255,255,.92);
+  font: 700 9px/1 Inter, Arial, sans-serif;
+  letter-spacing: .13em;
+  text-shadow: 0 1px 8px rgba(0,0,0,.3);
+  transition: left .35s ease;
+  pointer-events: none;
+}
+
+.theme-switch.is-dark .theme__track {
+  border-color: rgba(174,214,255,.43);
+  background: linear-gradient(145deg, rgba(39,70,108,.55), rgba(9,22,42,.58) 52%, rgba(110,151,201,.2));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3), inset 0 -8px 18px rgba(0,0,0,.24), 0 8px 28px rgba(0,0,0,.32), 0 0 20px rgba(87,157,245,.12);
+}
+
+.theme-switch.is-dark .theme__thumb {
+  transform: translateX(112px);
+  border-color: rgba(222,239,255,.62);
+  background: linear-gradient(145deg, rgba(215,235,255,.82), rgba(116,162,218,.48));
+  box-shadow: inset 0 1px 2px rgba(255,255,255,.75), 0 2px 10px rgba(0,0,0,.35), 0 0 18px rgba(138,194,255,.3);
+}
+
+.theme-switch.is-dark .theme__icon {
+  width: 17px;
+  height: 17px;
+  transform: translateX(1px);
+  background: #eaf4ff;
+  box-shadow: inset -5px 2px 0 0 #8198b4, 0 0 12px rgba(211,233,255,.56);
+}
+
+.theme-switch.is-dark .theme__icon::before {
+  inset: -4px;
+  border-color: rgba(213,233,255,.18);
+  opacity: .5;
+}
+
+.theme-switch.is-dark .theme__mode { left: 48px; }
+
+.theme__toggle:focus-visible + .theme__track {
+  outline: 2px solid #c5e6ff;
+  outline-offset: 4px;
+}
+
+.theme-switch:hover .theme__track {
+  border-color: rgba(255,255,255,.56);
+}
+
+.theme-switch--nav {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  display: block;
+  order: 9;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 32px;
+}
+
+.theme-switch--nav .theme__track {
+  border-radius: 999px;
+}
+
+.theme-switch--nav .theme__thumb {
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+}
+
+.theme-switch--nav.is-dark .theme__thumb {
+  transform: translateX(12px);
+}
+
+.theme-switch--nav .theme__icon {
+  width: 11px;
+  height: 11px;
+}
+
+.theme-switch--nav.is-dark .theme__icon {
+  width: 12px;
+  height: 12px;
+}
+
+.theme-switch--nav .theme__mode {
+  display: none;
+}
+
+.home-header .signout-button {
+  order: 10;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme__track,
+  .theme__thumb,
+  .theme__icon,
+  .theme__icon::before,
+  .theme__mode { transition-duration: .01ms; }
+}
+
+/* Keep dashboard type legible at normal viewing distances. */
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page),
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page) * {
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+}
+
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page) .material-symbols-outlined {
+  font-family: "Material Symbols Outlined" !important;
+}
+
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page)
+:is(small, .mono-data, .navbar-clock, .defense-grid-status, [class*="meta"], [class*="eyebrow"], [class*="badge"], [class*="footer"], [class*="status"], th, td) {
+  font-size: 14px !important;
+}
+
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page) p {
+  font-size: max(14px, .9em) !important;
+  line-height: 1.5;
+}
+
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page) :is(button, input, select, textarea) {
+  font-size: 14px !important;
+}
+
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page) .main-nav__link {
+  font-size: 15px !important;
+}
+
+/* The three data pages use compact CSS values; give all body copy a readable floor. */
+:is(.monitor-main, .incident-main, .analytics-main) :is(span, a, button, label, p, small, td, th, input, select) {
+  font-size: max(14px, 1em) !important;
+}
+
+:is(.monitor-main, .incident-main, .analytics-main) :is(h1, h2, h3, h4) {
+  font-size: max(17px, 1em) !important;
+}
+
+.analytics-main .kpi-reading > strong { font-size: 29px !important; }
+
+/* Light mode follows the reference's soft grey canvas, frosted panels, and ink text. */
+html[data-theme="light"] body { background: #e7e8eb; color: #20242b; }
+
+html[data-theme="light"] :is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page) {
+  --ink: #20242b;
+  --muted: rgba(32, 36, 43, .68);
+  color: #20242b;
+  text-shadow: none;
+}
+
+html[data-theme="light"] :is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page)
+:is(h1, h2, h3, h4, p, li, label, a, span, small, time, th, td, button, strong, b, summary, .mono-data) {
+  color: #252a31 !important;
+  text-shadow: none !important;
+}
+
+html[data-theme="light"] :is(.glass-panel, .glass-surface, .glass-card, .how-glass, .how-brief,
+  .how-topology, .how-node, .how-subsystem, .how-stack-card, .analytics-chart,
+  .analytics-insights, .analytics-ledger, .incident-filters, .incident-actionbar,
+  .incident-repository, .inspection-drawer, .monitor-stat, .threat-stream,
+  .zone-controls, .perimeter-card, .home-header, .camera-card, .stat-card, .classifier-card,
+  .prototype-banner) {
+  border-color: rgba(232, 241, 250, .18) !important;
+  background: linear-gradient(145deg, rgba(27, 34, 43, .62), rgba(11, 16, 23, .48)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.11), 0 14px 36px rgba(12,18,27,.2) !important;
+  backdrop-filter: blur(24px) saturate(145%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+}
+
+html[data-theme="light"] :is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page)
+:is(input, select, textarea, .filter-pill, .how-pill, .an-button, .glass-button) {
+  border-color: rgba(44, 51, 60, .2) !important;
+  background: rgba(255,255,255,.78) !important;
+  color: #252a31 !important;
+}
+
+html[data-theme="light"] :is(.incident-table td, .incident-table th, .analytics-ledger td,
+  .analytics-ledger th, .incident-table tbody tr:nth-child(even) td) {
+  background-color: rgba(255,255,255,.52) !important;
+}
+
+/* Keep media and one feature panel dark, as in the reference dashboard. */
+html[data-theme="light"] :is(.classifier-preview, .classifier-data-preview, .monitoring-video,
+  .incident-snapshot, .pipeline-card, .how-code-disclosure, .how-subsystem pre) {
+  border-color: rgba(20, 24, 30, .28) !important;
+  background-color: #101216 !important;
+  color: #f5f6f7 !important;
+}
+
+html[data-theme="light"] :is(.pipeline-card, .pipeline-card *) { color: #f5f6f7 !important; }
+html[data-theme="light"] .home-page .classifier-preview,
+html[data-theme="light"] .home-page .classifier-preview * { color: #f5f6f7 !important; }
+html[data-theme="light"] .home-page .nav-brand-copy { color: #145277 !important; }
+html[data-theme="light"] :is(.green-text, .active-state, .camera-registry-state.is-active,
+  .classifier-connection.is-connected, .how-compliance b, .how-health b) { color: #16784c !important; }
+html[data-theme="light"] :is(.red-text, .risk-red, .live-badge, .status-critical) { color: #a62232 !important; }
+
+html[data-theme="light"] :is(.auth-panel, .tune-modal, .evidence-modal, .policy-modal,
+  .upload-modal, .copilot-panel) {
+  border-color: rgba(224, 237, 250, .2) !important;
+  background: linear-gradient(145deg, rgba(31, 38, 48, .9), rgba(14, 19, 27, .94)) !important;
+  color: #f1f5f9 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 24px 64px rgba(17, 23, 32, .3) !important;
+  backdrop-filter: blur(26px) saturate(145%);
+  -webkit-backdrop-filter: blur(26px) saturate(145%);
+}
+
+/* Dialogs stay dark glass on the light canvas; night mode keeps its base styles. */
+html[data-theme="light"] :is(.tune-backdrop, .modal-backdrop, .modal-overlay) {
+  background: rgba(23, 29, 38, .34);
+  backdrop-filter: blur(13px) saturate(130%);
+  -webkit-backdrop-filter: blur(13px) saturate(130%);
+}
+
+html[data-theme="light"] :is(.tune-modal, .evidence-modal, .policy-modal, .upload-modal, .copilot-panel)
+:is(h1, h2, h3, h4, p, span, label, button, strong, b, small, time) {
+  color: #f1f5f9 !important;
+  text-shadow: none !important;
+}
+
+html[data-theme="light"] :is(.glass-panel, .glass-surface, .glass-card, .how-glass, .how-brief,
+  .how-topology, .how-node, .how-subsystem, .how-stack-card, .analytics-chart,
+  .analytics-insights, .analytics-ledger, .incident-filters, .incident-actionbar,
+  .incident-repository, .repository-card, .inspection-drawer, .monitor-stat, .threat-stream,
+  .zone-controls, .perimeter-card, .camera-card, .stat-card, .classifier-card,
+  .prototype-banner, .analytics-strip, .analytics-kpi)
+:is(input, select, textarea, .filter-pill, .how-pill, .an-button, .glass-button) {
+  border-color: rgba(232, 241, 250, .19) !important;
+  background: rgba(255, 255, 255, .09) !important;
+  color: rgba(248, 250, 253, .94) !important;
+}
+
+html[data-theme="light"] :is(.tune-modal, .evidence-modal, .policy-modal, .upload-modal, .copilot-panel)
+:is(input, select, textarea) {
+  border-color: rgba(224, 237, 250, .2) !important;
+  background: rgba(255, 255, 255, .08) !important;
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="light"] .auth-panel :is(h1, h2, p, span, label, button) { color: #f1f5f9 !important; }
+html[data-theme="light"] .auth-panel {
+  background: linear-gradient(145deg, rgba(35, 42, 52, .91), rgba(14, 19, 27, .96)) !important;
+  border-color: rgba(232, 241, 250, .23) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .15), 0 24px 70px rgba(18, 24, 34, .3) !important;
+}
+html[data-theme="light"] .auth-panel::before {
+  background: radial-gradient(ellipse at 50% 0, rgba(255,255,255,.12), transparent 50%),
+    linear-gradient(135deg, rgba(255,255,255,.055), transparent 45%);
+}
+html[data-theme="light"] .auth-panel .auth-field input {
+  border-color: rgba(44, 51, 60, .2);
+  background: rgba(239, 245, 255, .96);
+  color: #20242b;
+}
+html[data-theme="light"] .auth-panel .auth-field input::placeholder { color: rgba(32, 36, 43, .55); }
+html[data-theme="light"] .auth-panel .auth-input-wrap > svg,
+html[data-theme="light"] .auth-panel .auth-password > svg {
+  stroke: rgba(25, 30, 38, .78);
+}
+html[data-theme="light"] .auth-panel .auth-field input:-webkit-autofill {
+  -webkit-text-fill-color: #20242b;
+  box-shadow: 0 0 0 1000px #eff5ff inset;
+}
+
+/* The navigation bar uses a transparent charcoal glass surface in light mode. */
+html[data-theme="light"] .home-header {
+  border-color: rgba(230, 240, 252, .2) !important;
+  background: linear-gradient(145deg, rgba(22, 29, 38, .56), rgba(10, 15, 22, .4)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 12px 34px rgba(20, 26, 35, .13) !important;
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+}
+
+html[data-theme="light"] .home-header :is(.nav-brand-copy, .main-nav__link, .header-actions button, .navbar-clock, .profile-chip) {
+  color: rgba(248, 250, 253, .92) !important;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .24) !important;
+}
+
+html[data-theme="light"] .home-header .main-nav__link.is-current { color: #fff !important; }
+html[data-theme="light"] .home-header .profile-chip__avatar { color: #18202a !important; text-shadow: none !important; }
+
+html[data-theme="light"] .home-header .broadcast-button,
+html[data-theme="light"] .home-header .navbar-icon-button,
+html[data-theme="light"] .home-header .signout-button {
+  border-color: rgba(235, 244, 255, .4) !important;
+  background: rgba(235, 244, 255, .14) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 3px 12px rgba(0, 0, 0, .16);
+}
+html[data-theme="light"] .home-header .broadcast-button__icon {
+  background: rgba(255, 105, 129, .24) !important;
+  color: #ff8194 !important;
+  text-shadow: 0 0 8px rgba(255, 104, 128, .45) !important;
+}
+html[data-theme="light"] .home-header .broadcast-button:hover,
+html[data-theme="light"] .home-header .broadcast-button.is-live {
+  border-color: rgba(255, 144, 161, .75) !important;
+  background: rgba(255, 95, 120, .2) !important;
+}
+html[data-theme="light"] .home-header .profile-chip__avatar {
+  border-color: rgba(188, 219, 255, .8) !important;
+  background: linear-gradient(145deg, #b9dcff, #89aef4) !important;
+}
+html[data-theme="light"] .home-header .theme-switch--nav .theme__track {
+  border-color: rgba(232, 241, 250, .48);
+  background: linear-gradient(145deg, rgba(230, 239, 249, .3), rgba(164, 181, 202, .2));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 3px 12px rgba(0, 0, 0, .16);
+}
+html[data-theme="light"] .home-header .theme-switch--nav .theme__icon {
+  background: #ffd966;
+  box-shadow: 0 0 10px rgba(255, 218, 105, .95), 0 0 18px rgba(255, 218, 105, .55);
+}
+
+/* Give every frosted card the same readable ink when the day theme uses dark glass. */
+html[data-theme="light"] :is(.glass-panel, .glass-surface, .glass-card, .how-glass, .how-brief,
+  .how-topology, .how-node, .how-subsystem, .how-stack-card, .analytics-chart,
+  .analytics-insights, .analytics-ledger, .incident-filters, .incident-actionbar,
+  .incident-repository, .repository-card, .inspection-drawer, .monitor-stat, .threat-stream,
+  .zone-controls, .perimeter-card, .camera-card, .stat-card, .classifier-card,
+  .prototype-banner, .analytics-strip, .analytics-kpi)
+:is(h1, h2, h3, h4, p, li, a, span, small, time, th, td, button, strong, b, summary, label) {
+  color: rgba(246, 249, 253, .9) !important;
+  text-shadow: none !important;
+}
+
+html[data-theme="light"] :is(.incident-table td, .incident-table th, .analytics-ledger td,
+  .analytics-ledger th, .incident-table tbody tr:nth-child(even) td) {
+  background-color: rgba(255, 255, 255, .035) !important;
+}
+
+html[data-theme="light"] :is(.green-text, .active-state, .camera-registry-state.is-active,
+  .classifier-connection.is-connected, .how-compliance b, .how-health b, .camera-registry-online) {
+  color: #8ce0ad !important;
+}
+html[data-theme="light"] :is(.red-text, .risk-red, .live-badge, .status-critical, .camera-registry-offline) {
+  color: #ff9aa6 !important;
+}
+
+html[data-theme="light"] .home-page .online-pill {
+  border-color: rgba(112, 226, 176, .3) !important;
+  background: linear-gradient(145deg, rgba(24, 32, 40, .62), rgba(11, 17, 24, .48)) !important;
+  color: #b6f4d6 !important;
+  text-shadow: 0 0 9px rgba(111, 239, 177, .34) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 8px 22px rgba(13, 23, 29, .16);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
+.home-page .online-pill .status-dot {
+  display: none;
+}
+
+/* Keep the dark pipeline cards distinct from the media panels and lift their text contrast. */
+html[data-theme="light"] .home-page .pipeline-card {
+  border-color: rgba(224, 237, 250, .2) !important;
+  background: linear-gradient(145deg, rgba(35, 45, 57, .84), rgba(16, 23, 31, .78)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .13), 0 14px 34px rgba(12, 18, 27, .2) !important;
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+html[data-theme="light"] .home-page .pipeline-card .pipeline-card__top { color: rgba(235, 242, 250, .78) !important; }
+html[data-theme="light"] .home-page .pipeline-card h3 { color: #f5f8fc !important; }
+html[data-theme="light"] .home-page .pipeline-card p { color: #c8d3df !important; }
+html[data-theme="light"] .home-page .pipeline-card .pipeline-meta { color: #acd9ff !important; }
+html[data-theme="light"] .home-page .pipeline-card .pipeline-icon { color: #b6dcff !important; }
+
+/* Use Garesin for the shared primary navigation on every signed-in page. */
+.home-header .main-nav__link {
+  font-family: "Garesin", Georgia, serif !important;
+  font-weight: 400 !important;
+  letter-spacing: .015em;
+}
+html[data-theme="light"] .theme__track { border-color: rgba(45,52,61,.22); background: linear-gradient(145deg, rgba(255,255,255,.82), rgba(211,216,222,.65)); box-shadow: inset 0 1px 0 rgba(255,255,255,.94), 0 6px 20px rgba(36,42,50,.13); }
+html[data-theme="light"] .theme__mode { color: #26313b; text-shadow: none; }
+
+/* Larger dashboard text; the authentication panel is intentionally excluded. */
+:is(.home-page, .monitor-page, .incident-page, .analytics-page)
+:is(span, a, button, label, p, small, td, th, input, select, time) {
+  font-size: max(15px, 1em) !important;
+}
+
+:is(.home-page, .monitor-page, .incident-page, .analytics-page) :is(h1, h2, h3, h4) {
+  font-size: max(20px, 1em) !important;
+}
+
+:is(.home-page, .monitor-page, .incident-page, .analytics-page) .main-nav__link {
+  font-size: 16px !important;
+}
+
+.analytics-page .kpi-reading > strong { font-size: 29px !important; }
+
+@media (max-width: 700px) {
+  :is(.home-page, .monitor-page, .incident-page, .analytics-page)
+  :is(span, a, button, label, p, small, td, th, input, select, time) {
+    font-size: max(14px, 1em) !important;
+  }
+}
+
+/* A consistent readable floor for compact labels and body copy. */
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page)
+:is(span, a, button, label, p, small, td, th, input, select, time, li) {
+  font-size: max(16px, 1em) !important;
+}
+
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page)
+:is(small, .mono-data, .navbar-clock, .defense-grid-status, [class*="meta"], [class*="eyebrow"], [class*="badge"], [class*="status"], th) {
+  font-size: max(13px, 1em) !important;
+}
+
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page) :is(h1, h2, h3, h4) {
+  line-height: 1.2;
+}
+
+.home-page .hero-copy h1 { font-size: clamp(48px, 5vw, 82px) !important; }
+.home-page .hero-description { font-size: 19px !important; }
+.home-page .classifier-preview { height: clamp(190px, 18vw, 280px); }
+
+@media (max-width: 700px) {
+  .home-page .hero-copy h1 { font-size: clamp(39px, 10vw, 56px) !important; }
+  .home-page .hero-description { font-size: 17px !important; }
+  .home-page .classifier-preview { height: 180px; }
+}
+
+/* Use the supplied display font only for the navigation options shown in the reference. */
+.home-page .main-nav__link {
+  font-family: "Hello Baby", cursive !important;
+  font-size: 19px !important;
+  font-weight: 400;
+}
+
+@media (max-width: 1279px) {
+  .home-page .main-nav.is-open .main-nav__link { font-size: 20px !important; }
+}
+
+/* Shared fluid page frame for every signed-in section. */
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page) {
+  width: 100%;
+  min-width: 0;
+}
+
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page) .home-header {
+  width: calc(100% - clamp(24px, 4vw, 80px));
+  max-width: none;
+}
+
+.home-page .home-content,
+.monitor-page .monitor-main,
+.incident-page .incident-main,
+.analytics-page .analytics-main,
+.how-page .how-main {
+  width: calc(100% - clamp(32px, 5vw, 112px));
+  max-width: none;
+  min-width: 0;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+:is(.monitor-page, .incident-page, .analytics-page, .how-page) :is(section, article, aside, main, header, footer) {
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .monitor-page .monitor-workspace,
+  .incident-page .incident-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .monitor-page .monitor-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .how-page .how-brief { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 800px) {
+  .home-page .home-content,
+  .monitor-page .monitor-main,
+  .incident-page .incident-main,
+  .analytics-page .analytics-main,
+  .how-page .how-main {
+    width: calc(100% - 32px);
+  }
+
+  .home-page .hero-section { grid-template-columns: minmax(0, 1fr); }
+  .home-page .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-page .classifier-grid { grid-template-columns: minmax(0, 1fr); }
+  .monitor-page .monitor-workspace,
+  .incident-page .incident-workspace,
+  .analytics-page .analytics-bottom { grid-template-columns: minmax(0, 1fr); }
+  .how-page .how-pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  .home-page .home-content,
+  .monitor-page .monitor-main,
+  .incident-page .incident-main,
+  .analytics-page .analytics-main,
+  .how-page .how-main {
+    width: calc(100% - 20px);
+  }
+
+  .home-page .stats-grid,
+  .home-page .pipeline-grid,
+  .monitor-page .monitor-stats,
+  .analytics-page .analytics-kpis,
+  .how-page .how-pipeline,
+  .how-page .how-subsystem-grid,
+  .how-page .how-stack-grid { grid-template-columns: minmax(0, 1fr); }
+
+  .home-page .stat-card--wide { grid-column: auto; }
+  .monitor-page .monitor-stat--deployment { grid-column: auto; }
+  .home-page .hero-actions { align-items: stretch; }
+  .home-page .hero-actions .button { flex: 1 1 150px; }
+  .incident-page .incident-workspace,
+  .analytics-page .analytics-bottom { gap: 10px; }
+}
+
+@media (min-width: 2400px) {
+  body :is(.monitor-page, .incident-page, .analytics-page, .how-page)
+  :is(span, p, li, td, th, button, label, a, input, select, time, small) {
+    font-size: clamp(24px, .82vw, 48px) !important;
+    line-height: 1.35;
+  }
+
+  body :is(.monitor-page, .incident-page, .analytics-page, .how-page) :is(h1, h2, h3, h4) {
+    font-size: clamp(36px, 1.25vw, 76px) !important;
+    line-height: 1.15;
+  }
+
+  body .monitor-page .monitor-workspace {
+    grid-template-columns: minmax(0, 1.8fr) minmax(clamp(340px, 22vw, 980px), .9fr);
+    gap: clamp(16px, 1vw, 48px);
+  }
+
+  body .monitor-page .monitor-stat {
+    min-height: clamp(180px, 6vw, 320px);
+    padding: clamp(18px, 1vw, 48px);
+  }
+
+  body .incident-page .incident-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(clamp(315px, 22vw, 980px), .8fr);
+    gap: clamp(16px, 1vw, 48px);
+  }
+
+  body .how-page .how-brief {
+    grid-template-columns: minmax(0, 1.4fr) minmax(clamp(290px, 22vw, 900px), .8fr);
+  }
+
+  body :is(.monitor-page, .incident-page, .analytics-page, .how-page) .home-header {
+    min-height: clamp(100px, 3.6vw, 180px);
+    padding: clamp(18px, 1vw, 48px) clamp(24px, 1.8vw, 84px);
+  }
+}
+
+/* Keep the shared navigation consistent across page switches and viewport sizes. */
+@media (min-width: 1280px) {
+  .home-header .main-nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: space-evenly;
+    gap: clamp(18px, 1.6vw, 32px);
+  }
+
+  .home-header .main-nav__link {
+    padding-inline: 4px;
+    font-family: "Garesin", Georgia, serif !important;
+    font-size: clamp(17px, 1vw, 20px) !important;
+    font-weight: 400 !important;
+    line-height: 1.25;
+  }
+}
+
+@media (max-width: 1279px) {
+  header.home-header.home-header .main-nav.is-open .main-nav__link {
+    font-family: "Garesin", Georgia, serif !important;
+    font-size: 16px !important;
+    font-weight: 400 !important;
+    line-height: 1.35;
+  }
+}
+
+/* Navy glass finish for the light theme's shared panels and frames. */
+html[data-theme="light"] :is(.glass-panel, .glass-surface, .glass-card, .how-glass, .how-brief,
+  .how-topology, .how-node, .how-subsystem, .how-stack-card, .analytics-chart,
+  .analytics-insights, .analytics-ledger, .incident-filters, .incident-actionbar,
+  .incident-repository, .repository-card, .inspection-drawer, .monitor-stat, .threat-stream,
+  .zone-controls, .perimeter-card, .camera-card, .stat-card, .classifier-card,
+  .prototype-banner, .analytics-strip, .analytics-kpi, .auth-panel, .tune-modal,
+  .evidence-modal, .policy-modal, .upload-modal, .copilot-panel) {
+  border-color: rgba(151, 187, 230, .3) !important;
+  background: linear-gradient(145deg, rgba(25, 40, 61, .68), rgba(10, 21, 38, .54)) !important;
+  box-shadow: inset 0 1px 0 rgba(198, 220, 249, .13), 0 14px 36px rgba(8, 18, 34, .22) !important;
+}
+
+html[data-theme="light"] :is(.glass-panel, .glass-surface, .glass-card, .how-glass, .how-brief,
+  .how-topology, .how-node, .how-subsystem, .how-stack-card, .analytics-chart,
+  .analytics-insights, .analytics-ledger, .incident-filters, .incident-actionbar,
+  .incident-repository, .repository-card, .inspection-drawer, .monitor-stat, .threat-stream,
+  .zone-controls, .perimeter-card, .camera-card, .stat-card, .classifier-card,
+  .prototype-banner, .analytics-strip, .analytics-kpi)
+:is(input, select, textarea, .filter-pill, .how-pill, .an-button, .glass-button) {
+  border-color: rgba(151, 187, 230, .32) !important;
+  background: rgba(57, 83, 119, .28) !important;
+}
+
+html[data-theme="light"] .home-header {
+  background: linear-gradient(145deg, rgba(25, 40, 61, .61), rgba(10, 21, 38, .47)) !important;
+}
+
+/* Refined shared header: generous spacing, clear glass edge, and quieter controls. */
+:is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page) .home-header {
+  min-height: 84px;
+  padding: 12px clamp(18px, 1.5vw, 28px);
+  border: 1px solid rgba(196, 216, 239, .28);
+  border-radius: 25px;
+  background: linear-gradient(110deg, rgba(21, 30, 42, .82), rgba(56, 66, 80, .72) 52%, rgba(20, 28, 39, .84));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), 0 16px 38px rgba(0, 6, 16, .23);
+  backdrop-filter: blur(24px) saturate(145%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+}
+
+.home-header .nav-brand { gap: 11px; }
+.home-header .nav-brand svg { width: 38px; height: 44px; }
+.home-header .nav-brand-copy { padding-left: 12px; font-size: 14px; }
+.home-header .main-nav {
+  flex: 0 1 auto;
+  justify-content: flex-start;
+  gap: clamp(16px, 1.7vw, 30px);
+  margin-right: auto;
+  padding-inline: clamp(18px, 2.4vw, 42px);
+}
+.home-header .main-nav__link { padding-block: 11px; color: rgba(235, 242, 251, .72); }
+.home-header .main-nav__link:hover { color: #fff; }
+.home-header .main-nav__link.is-current::after { height: 2px; background: #83cfff; box-shadow: 0 0 12px rgba(87, 177, 244, .62); }
+.home-header .header-actions { gap: 10px; }
+.home-header .broadcast-button,
+.home-header .signout-button,
+.home-header .navbar-icon-button,
+.home-header .profile-chip__avatar {
+  border-color: rgba(220, 232, 247, .27);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+.home-header .broadcast-button,
+.home-header .signout-button { width: 42px; height: 42px; min-height: 42px; background: rgba(230, 239, 250, .075); }
+.home-header .profile-chip__avatar { width: 38px; height: 38px; background: linear-gradient(145deg, rgba(123, 165, 222, .65), rgba(76, 104, 158, .62)); }
+.home-header :is(button, a):focus-visible { outline: 2px solid #8bd1ff; outline-offset: 4px; }
+
+@media (max-width: 800px) {
+  :is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page) .home-header {
+    min-height: 68px;
+    border-radius: 19px;
+  }
+  .home-header .main-nav { margin-right: 0; padding-inline: 0; }
+}
+
+@media (max-width: 520px) {
+  :is(.home-page, .monitor-page, .incident-page, .analytics-page, .how-page) .home-header {
+    min-height: 60px;
+    border-radius: 16px;
+  }
+}
+
+/* Dark glow box for the pipeline's operational status. */
+.home-page .pipeline-section .pipeline-live {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid rgba(213, 220, 235, .3);
+  border-radius: 10px;
+  background: #262626;
+  color: #f3f4f6;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  box-shadow: 0 12px 22px -18px rgba(0, 0, 0, .8);
+  line-height: 1;
+  transition: color .3s ease, border-color .3s ease, text-decoration-thickness .3s ease;
+}
+
+.home-page .pipeline-section .pipeline-live::before,
+.home-page .pipeline-section .pipeline-live::after {
+  position: absolute;
+  z-index: -1;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  content: '';
+  filter: blur(13px);
+  transition: right .5s ease, bottom .5s ease, box-shadow .5s ease, filter .5s ease;
+  pointer-events: none;
+}
+
+.home-page .pipeline-section .pipeline-live::before {
+  top: 2px;
+  right: 2px;
+  background: #a21caf;
+}
+
+.home-page .pipeline-section .pipeline-live::after {
+  top: 5px;
+  right: 23px;
+  background: #fda4af;
+}
+
+.home-page .pipeline-section .pipeline-live:hover {
+  border-color: #fda4af;
+  color: #fda4af;
+  text-decoration-thickness: 2px;
+}
+
+.home-page .pipeline-section .pipeline-live:hover::before {
+  right: 48px;
+  bottom: -32px;
+  box-shadow: 20px 20px 20px 30px #a21caf;
+  filter: blur(18px);
+}
+
+.home-page .pipeline-section .pipeline-live:hover::after {
+  right: -30px;
+}
+
+html[data-theme="light"] .home-page .pipeline-card {
+  border-color: rgba(151, 187, 230, .34) !important;
+  background: linear-gradient(145deg, rgba(25, 40, 61, .76), rgba(10, 21, 38, .65)) !important;
+}
+
+html[data-theme="light"] .home-page .online-pill {
+  border-color: rgba(115, 166, 225, .4) !important;
+  background: linear-gradient(145deg, rgba(25, 40, 61, .65), rgba(10, 21, 38, .5)) !important;
+}
+
+html[data-theme="light"] :is(.tune-backdrop, .modal-backdrop, .modal-overlay) {
+  background: rgba(11, 21, 38, .38);
+}
+
+html[data-theme="light"] .analytics-page .analytics-strip {
+  background: linear-gradient(145deg, rgba(25, 40, 61, .56), rgba(10, 21, 38, .42)) !important;
+  box-shadow: inset 0 1px 0 rgba(198, 220, 249, .1), 0 12px 30px rgba(8, 18, 34, .16) !important;
+}
+
+/* Light-theme cards use translucent gray glass; keep the navbar and camera registry blue. */
+html[data-theme="light"] :is(.glass-panel, .glass-surface, .glass-card, .how-glass, .how-brief,
+  .how-topology, .how-node, .how-subsystem, .how-stack-card, .analytics-chart,
+  .analytics-insights, .analytics-ledger, .incident-filters, .incident-actionbar,
+  .incident-repository, .repository-card, .inspection-drawer, .monitor-stat,
+  .threat-stream, .zone-controls, .perimeter-card, .perimeter-feed, .camera-card,
+  .stat-card, .classifier-card, .prototype-banner, .analytics-strip, .analytics-kpi,
+  .auth-panel, .tune-modal, .evidence-modal, .policy-modal, .upload-modal, .copilot-panel):not(.home-header):not(.camera-card) {
+  border-color: rgba(255,255,255,.52) !important;
+  background:
+    linear-gradient(145deg, rgba(222,226,231,.74), rgba(157,166,176,.5)),
+    rgba(202,208,215,.38) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.62), 0 14px 36px rgba(52,61,71,.16) !important;
+  backdrop-filter: blur(22px) saturate(125%);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+}
+
+html[data-theme="light"] :is(.glass-panel, .glass-surface, .glass-card, .how-glass, .how-brief,
+  .how-topology, .how-node, .how-subsystem, .how-stack-card, .analytics-chart,
+  .analytics-insights, .analytics-ledger, .incident-filters, .incident-actionbar,
+  .incident-repository, .repository-card, .inspection-drawer, .monitor-stat,
+  .threat-stream, .zone-controls, .perimeter-card, .perimeter-feed, .camera-card,
+  .stat-card, .classifier-card, .prototype-banner, .analytics-strip, .analytics-kpi,
+  .auth-panel, .tune-modal, .evidence-modal, .policy-modal, .upload-modal, .copilot-panel):not(.home-header):not(.camera-card)
+:is(h1, h2, h3, h4, p, li, a, small, time, th, td, strong, b, summary, label,
+  span:not([class*="icon"]):not(.material-symbols-outlined)) {
+  color: #17202a !important;
+  text-shadow: none !important;
+}
+
+.analytics-page .analytics-strip .engine-state {
+  gap: 12px;
+  font-size: 17px !important;
+  line-height: 1.35;
+}
+.analytics-page .analytics-strip .engine-state > .pulse-green,
+.analytics-page .analytics-strip .engine-state > .pulse-red { display: none; }
+.analytics-page .analytics-strip .engine-state > b {
+  color: #9ee9bf !important;
+  font-size: 16px !important;
+  font-weight: 750;
+}
+.analytics-page .analytics-strip .engine-state > span:not(.strip-sep) {
+  color: rgba(246, 249, 253, .94) !important;
+  font-size: 16px !important;
+}
+.analytics-page .analytics-strip .engine-state > strong {
+  color: #d5e4a6 !important;
+  font-size: 16px !important;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .analytics-page .analytics-strip .engine-state { gap: 8px; font-size: 14px !important; }
+  .analytics-page .analytics-strip .engine-state > b,
+  .analytics-page .analytics-strip .engine-state > span:not(.strip-sep),
+  .analytics-page .analytics-strip .engine-state > strong { font-size: 14px !important; }
+}
+
+.home-page .stats-grid .stat-card__body p { font-size: clamp(15px, .9vw, 17px) !important; font-weight: 700 !important; }
+.home-page .stats-grid .stat-card__body strong { font-size: clamp(36px, 2.2vw, 42px) !important; font-weight: 750 !important; }
+.home-page .stats-grid .stat-card__body span { font-size: clamp(14px, .8vw, 16px) !important; font-weight: 600 !important; }
+.home-page .view-indicator { font-size: clamp(16px, 1vw, 18px) !important; }
+.home-page .view-indicator strong { font-size: clamp(17px, 1.05vw, 19px) !important; }

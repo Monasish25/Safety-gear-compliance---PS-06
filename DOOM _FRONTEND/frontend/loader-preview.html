@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loader Preview</title>
+<style>
+  * { box-sizing: border-box; }
+  body { min-height: 100vh; margin: 0; display: grid; place-items: center; background: #07111f; color: #dbeafe; font: 14px system-ui, sans-serif; }
+  main { display: grid; justify-items: center; gap: 20px; padding: 48px; border: 1px solid #ffffff20; border-radius: 18px; background: #ffffff0a; }
+  .loader { width: 48px; height: 48px; border: 3px dotted #fff; border-style: solid solid dotted dotted; border-radius: 50%; display: inline-block; position: relative; animation: rotation 2s linear infinite; }
+  .loader::after { content: ''; box-sizing: border-box; position: absolute; inset: 0; margin: auto; border: 3px dotted #06f; border-style: solid solid dotted; width: 24px; height: 24px; border-radius: 50%; animation: rotation-back 1s linear infinite; }
+  @keyframes rotation { to { transform: rotate(360deg); } }
+  @keyframes rotation-back { to { transform: rotate(-360deg); } }
+</style>
+<main><span class="loader" role="status" aria-label="Loading"></span><span>Dotted double-ring loader</span></main>

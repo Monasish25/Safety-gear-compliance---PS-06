@@ -1,0 +1,5 @@
+﻿onode_modules/
+.env
+.env.*
+!.env.example
+

@@ -1,0 +1,3 @@
+export default function TelemetryStrip({ cameras, zones, connected, loading, onRefresh }) {
+  return <section className="analytics-strip glass-surface"><div className="engine-state"><i className={connected ? 'pulse-green' : 'pulse-red'}/><b>{loading ? 'CONNECTING TO BACKEND' : connected ? 'BACKEND API CONNECTED' : 'BACKEND API UNAVAILABLE'}</b><span className="strip-sep"/><span>{cameras.length} cameras registered</span><span className="strip-sep"/><strong>{zones.length} zones configured</strong></div><div className="sector-filter"><button className="an-button" type="button" onClick={onRefresh} disabled={loading}><span className={loading ? 'spinner' : ''}>↻</span> {loading ? 'LOADING' : 'REFRESH BACKEND DATA'}</button></div></section>
+}
