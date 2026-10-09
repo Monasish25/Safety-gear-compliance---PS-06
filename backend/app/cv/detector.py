@@ -8,17 +8,25 @@ from ultralytics import YOLO
 logger = logging.getLogger("safegear.detector")
 
 class SafetyVisionDetector:
-    def __init__(self, model_path: str = "yolov8n.pt"):
-        self.model_path = model_path
-        self.model = None
+    def __init__(self, ppe_model_path: str = "models/PPE.pt", firesmoke_model_path: str = "models/FireSmoke.pt"):
+        self.ppe_model_path = os.path.join(os.path.dirname(__file__), '..', '..', ppe_model_path)
+        self.firesmoke_model_path = os.path.join(os.path.dirname(__file__), '..', '..', firesmoke_model_path)
+        self.ppe_model = None
+        self.firesmoke_model = None
         self._load_model()
 
     def _load_model(self):
         try:
-            self.model = YOLO(self.model_path)
-            logger.info(f"Loaded YOLO model from {self.model_path}")
+            self.ppe_model = YOLO(self.ppe_model_path)
+            logger.info(f"Loaded PPE YOLO model from {self.ppe_model_path}")
         except Exception as e:
-            logger.warning(f"Failed to load YOLO model ({e}). Will use fallback person detector.")
+            logger.warning(f"Failed to load PPE YOLO model ({e}). Will use fallback person detector.")
+            
+        try:
+            self.firesmoke_model = YOLO(self.firesmoke_model_path)
+            logger.info(f"Loaded FireSmoke YOLO model from {self.firesmoke_model_path}")
+        except Exception as e:
+            logger.warning(f"Failed to load FireSmoke YOLO model ({e}). Will use fallback optical detection.")
 
     def detect_frame(self, frame: np.ndarray, conf_threshold: float = 0.25) -> Dict:
         """
@@ -36,14 +44,14 @@ class SafetyVisionDetector:
 
         h, w = frame.shape[:2]
 
-        if self.model is not None:
+        if self.ppe_model is not None:
             try:
-                results = self.model.predict(frame, conf=conf_threshold, verbose=False)
+                results = self.ppe_model.predict(frame, conf=conf_threshold, verbose=False)
                 for r in results:
                     boxes = r.boxes
                     for box in boxes:
                         cls_id = int(box.cls[0])
-                        cls_name = self.model.names.get(cls_id, "").lower()
+                        cls_name = self.ppe_model.names.get(cls_id, "").lower()
                         conf = float(box.conf[0])
                         xyxy = [float(x) for x in box.xyxy[0].tolist()]
 
@@ -57,12 +65,26 @@ class SafetyVisionDetector:
                             ppe_items.append({"label": "gloves", "bbox": xyxy, "confidence": conf})
                         elif "mask" in cls_name:
                             ppe_items.append({"label": "mask", "bbox": xyxy, "confidence": conf})
-                        elif "fire" in cls_name:
+            except Exception as e:
+                logger.error(f"PPE Inference error: {e}")
+
+        if self.firesmoke_model is not None:
+            try:
+                results = self.firesmoke_model.predict(frame, conf=conf_threshold, verbose=False)
+                for r in results:
+                    boxes = r.boxes
+                    for box in boxes:
+                        cls_id = int(box.cls[0])
+                        cls_name = self.firesmoke_model.names.get(cls_id, "").lower()
+                        conf = float(box.conf[0])
+                        xyxy = [float(x) for x in box.xyxy[0].tolist()]
+
+                        if "fire" in cls_name:
                             fire_boxes.append({"bbox": xyxy, "confidence": conf})
                         elif "smoke" in cls_name:
                             smoke_boxes.append({"bbox": xyxy, "confidence": conf})
             except Exception as e:
-                logger.error(f"Inference error: {e}")
+                logger.error(f"FireSmoke Inference error: {e}")
 
         # If no neural persons found (e.g. synthetic simulation or extreme lighting), detect human shapes by contour/aspect ratio
         if len(persons) == 0:
