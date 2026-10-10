@@ -1,0 +1,22 @@
+# ==============================================================================
+# SMART ATTENDANCE - Industrial PPE & Turnstile YOLO Dataset Configuration
+# Classes include explicit positive and negative ("no_X") categories
+# ==============================================================================
+
+path: ./data/ppe_dataset # root directory
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: person
+  1: helmet
+  2: no_helmet
+  3: vest
+  4: no_vest
+  5: gloves
+  6: no_gloves
+  7: goggles
+  8: no_goggles
+  9: safety_shoes
+  10: no_safety_shoes
