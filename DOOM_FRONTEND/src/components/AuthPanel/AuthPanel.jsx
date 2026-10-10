@@ -41,7 +41,10 @@ export default function AuthPanel({ onLogin }) {
       try {
         const res = await fetch(`${API_BASE}/auth/register`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true' 
+          },
           body: JSON.stringify({ email, password, full_name: name, role: 'supervisor' })
         })
         const data = await res.json()
@@ -61,7 +64,10 @@ export default function AuthPanel({ onLogin }) {
         params.append('password', password)
         const res = await fetch(`${API_BASE}/auth/token`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: { 
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'ngrok-skip-browser-warning': 'true'
+          },
           body: params
         })
         const data = await res.json()
