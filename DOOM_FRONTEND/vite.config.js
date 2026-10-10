@@ -11,6 +11,11 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: env.VITE_BACKEND_ORIGIN || 'http://localhost:8000',
           changeOrigin: true,
+          ws: true,
+        },
+        '/ws': {
+          target: env.VITE_BACKEND_ORIGIN || 'http://localhost:8000',
+          ws: true,
         },
       },
     },

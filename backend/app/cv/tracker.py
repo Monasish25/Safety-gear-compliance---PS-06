@@ -2,21 +2,13 @@ import time
 import numpy as np
 from typing import List, Dict, Tuple, Optional
 
-def calculate_iou(box1: List[float], box2: List[float]) -> float:
-    """Calculate Intersection over Union of two bounding boxes [x1, y1, x2, y2]."""
-    x1 = max(box1[0], box2[0])
-    y1 = max(box1[1], box2[1])
-    x2 = min(box1[2], box2[2])
-    y2 = min(box1[3], box2[3])
-
-    inter_area = max(0, x2 - x1) * max(0, y2 - y1)
-    box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
-    box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
-
-    union_area = box1_area + box2_area - inter_area
-    if union_area <= 0:
-        return 0.0
-    return inter_area / union_area
+def calculate_center_distance(box1: List[float], box2: List[float]) -> float:
+    """Calculate Euclidean distance between the centers of two bounding boxes."""
+    c1_x = (box1[0] + box1[2]) / 2
+    c1_y = (box1[1] + box1[3]) / 2
+    c2_x = (box2[0] + box2[2]) / 2
+    c2_y = (box2[1] + box2[3]) / 2
+    return np.sqrt((c1_x - c2_x)**2 + (c1_y - c2_y)**2)
 
 class TrackedWorker:
     def __init__(self, track_id: str, bbox: List[float], confidence: float, timestamp: float):
@@ -26,11 +18,10 @@ class TrackedWorker:
         self.first_seen = timestamp
         self.last_seen = timestamp
         self.time_since_update = 0.0
-        self.velocity = [0.0, 0.0]  # dx, dy per sec
+        self.velocity = [0.0, 0.0]
         self.history = [bbox]
 
     def predict(self, dt: float) -> List[float]:
-        """Simple motion prediction for occlusion handling."""
         dx = self.velocity[0] * dt
         dy = self.velocity[1] * dt
         return [
@@ -41,14 +32,7 @@ class TrackedWorker:
         ]
 
     def update(self, bbox: List[float], confidence: float, timestamp: float):
-        dt = max(1e-3, timestamp - self.last_seen)
-        old_center = [(self.bbox[0] + self.bbox[2]) / 2, (self.bbox[1] + self.bbox[3]) / 2]
-        new_center = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
-        
-        self.velocity = [
-            (new_center[0] - old_center[0]) / dt,
-            (new_center[1] - old_center[1]) / dt
-        ]
+        self.velocity = [0.0, 0.0]
         self.bbox = bbox
         self.confidence = confidence
         self.last_seen = timestamp
@@ -58,14 +42,10 @@ class TrackedWorker:
             self.history.pop(0)
 
 class AnonymousWorkerTracker:
-    """
-    ByteTrack-inspired tracker maintaining anonymous IDs across frames.
-    Tolerates occlusion (default up to 3s) using predicted bounding boxes.
-    """
-    def __init__(self, camera_id: str = "CAM_01", max_age_seconds: float = 3.0, iou_threshold: float = 0.3):
+    def __init__(self, camera_id: str = "CAM_01", max_age_seconds: float = 1.0, distance_threshold: float = 250.0):
         self.camera_id = camera_id
         self.max_age_seconds = max_age_seconds
-        self.iou_threshold = iou_threshold
+        self.distance_threshold = distance_threshold
         self.trackers: Dict[str, TrackedWorker] = {}
         self.next_id_counter = 1
 
@@ -75,38 +55,31 @@ class AnonymousWorkerTracker:
         return tid
 
     def update(self, detections: List[Dict], current_time: Optional[float] = None) -> List[Dict]:
-        """
-        Input detections: list of {'bbox': [x1, y1, x2, y2], 'confidence': float}
-        Returns: list of detections augmented with 'track_id' and 'predicted_bbox'
-        """
         if current_time is None:
             current_time = time.time()
 
-        # Update time_since_update for existing tracks
         for track in self.trackers.values():
             track.time_since_update = current_time - track.last_seen
 
         active_track_ids = list(self.trackers.keys())
         matched_detections = set()
         matched_tracks = set()
-
         results = []
 
         if active_track_ids and detections:
-            # First match with recent tracks
-            cost_matrix = np.zeros((len(detections), len(active_track_ids)), dtype=float)
+            cost_matrix = np.full((len(detections), len(active_track_ids)), np.inf)
             for i, det in enumerate(detections):
                 for j, tid in enumerate(active_track_ids):
                     track = self.trackers[tid]
                     pred_bbox = track.predict(track.time_since_update)
-                    cost_matrix[i, j] = calculate_iou(det['bbox'], pred_bbox)
+                    dist = calculate_center_distance(det['bbox'], pred_bbox)
+                    cost_matrix[i, j] = dist
 
-            # Greedy bipartite matching
             while True:
-                max_iou = np.max(cost_matrix)
-                if max_iou < self.iou_threshold:
+                min_dist = np.min(cost_matrix)
+                if min_dist > self.distance_threshold:
                     break
-                i, j = np.unravel_index(np.argmax(cost_matrix), cost_matrix.shape)
+                i, j = np.unravel_index(np.argmin(cost_matrix), cost_matrix.shape)
                 tid = active_track_ids[j]
 
                 self.trackers[tid].update(detections[i]['bbox'], detections[i]['confidence'], current_time)
@@ -116,8 +89,8 @@ class AnonymousWorkerTracker:
 
                 matched_detections.add(i)
                 matched_tracks.add(tid)
-                cost_matrix[i, :] = -1.0
-                cost_matrix[:, j] = -1.0
+                cost_matrix[i, :] = np.inf
+                cost_matrix[:, j] = np.inf
 
         # Unmatched detections -> spawn new anonymous tracks
         for i, det in enumerate(detections):

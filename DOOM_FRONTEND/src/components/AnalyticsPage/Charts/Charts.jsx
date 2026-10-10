@@ -27,7 +27,7 @@ function RecentEventsChart({ events }) {
     const next = new Date(date)
     next.setDate(next.getDate() + 1)
     const count = events.filter((event) => {
-      const eventDate = new Date(event.started_at)
+      const eventDate = new Date(event.triggered_at || event.timestamp || Date.now())
       return eventDate >= date && eventDate < next
     }).length
     return { date, count }

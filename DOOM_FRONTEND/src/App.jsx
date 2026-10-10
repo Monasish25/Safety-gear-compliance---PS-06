@@ -16,9 +16,15 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = 'dark'
+    const storedUser = localStorage.getItem('user')
+    if (storedUser) {
+      try { setUser(JSON.parse(storedUser)) } catch (e) { localStorage.removeItem('user') }
+    }
   }, [])
 
   function signOut() {
+    localStorage.removeItem('user')
+    localStorage.removeItem('token')
     setUser(null)
     setPage('home')
   }
@@ -26,18 +32,20 @@ export default function App() {
   return (
     <main className={user ? 'site-shell site-shell--home' : 'site-shell'}>
       <Background theme={theme} />
-      {user ? (
-        page === 'how'
-          ? <HowItWorksPage user={user} theme={theme} onHome={() => setPage('home')} onLive={() => setPage('live')} onIncidents={() => setPage('incidents')} onAnalytics={() => setPage('analytics')} onSignOut={signOut} />
-          : page === 'analytics'
-          ? <AnalyticsPage user={user} theme={theme} onHome={() => setPage('home')} onLive={() => setPage('live')} onIncidents={() => setPage('incidents')} onHow={() => setPage('how')} onSignOut={signOut} />
-          : page === 'incidents'
-          ? <IncidentPage user={user} theme={theme} onHome={() => setPage('home')} onLive={() => setPage('live')} onAnalytics={() => setPage('analytics')} onHow={() => setPage('how')} onSignOut={signOut} />
-          : page === 'live'
-            ? <LiveMonitoringPage user={user} theme={theme} onHome={() => setPage('home')} onIncidents={() => setPage('incidents')} onAnalytics={() => setPage('analytics')} onHow={() => setPage('how')} onSignOut={signOut} />
-            : <HomePage user={user} theme={theme} onSignOut={signOut} onOpenIncidents={() => setPage('incidents')} onOpenLive={() => setPage('live')} onOpenAnalytics={() => setPage('analytics')} onOpenHow={() => setPage('how')} />
-      ) : introComplete ? <AuthPanel onLogin={(nextUser) => { setUser(nextUser); setPage('home') }} /> : null}
-      <LogoIntro onComplete={() => setIntroComplete(true)} />
+      {introComplete && (
+        user ? (
+          page === 'how'
+            ? <HowItWorksPage user={user} theme={theme} onHome={() => setPage('home')} onLive={() => setPage('live')} onIncidents={() => setPage('incidents')} onAnalytics={() => setPage('analytics')} onSignOut={signOut} />
+            : page === 'analytics'
+            ? <AnalyticsPage user={user} theme={theme} onHome={() => setPage('home')} onLive={() => setPage('live')} onIncidents={() => setPage('incidents')} onHow={() => setPage('how')} onSignOut={signOut} />
+            : page === 'incidents'
+            ? <IncidentPage user={user} theme={theme} onHome={() => setPage('home')} onLive={() => setPage('live')} onAnalytics={() => setPage('analytics')} onHow={() => setPage('how')} onSignOut={signOut} />
+            : page === 'live'
+              ? <LiveMonitoringPage user={user} theme={theme} onHome={() => setPage('home')} onIncidents={() => setPage('incidents')} onAnalytics={() => setPage('analytics')} onHow={() => setPage('how')} onSignOut={signOut} />
+              : <HomePage user={user} theme={theme} onSignOut={signOut} onOpenIncidents={() => setPage('incidents')} onOpenLive={() => setPage('live')} onOpenAnalytics={() => setPage('analytics')} onOpenHow={() => setPage('how')} />
+        ) : <AuthPanel onLogin={(nextUser) => { setUser(nextUser); setPage('home') }} />
+      )}
+      {!introComplete && <LogoIntro onComplete={() => setIntroComplete(true)} />}
     </main>
   )
 }

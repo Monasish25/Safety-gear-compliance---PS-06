@@ -83,8 +83,18 @@ export default function MainFeed({
 
       <div className={`monitoring-video${infrared ? ' is-infrared' : ''}${view === 'solo' ? ' is-solo' : ''}${hasVideoSource ? '' : ' is-standby'}`}>
         {/* Device WebCam */}
-        {cameraStream && !uploadedVideoUrl && (
+        {cameraStream && !uploadedVideoUrl && !liveTelemetry?.image_base64 && (
           <video ref={cameraRef} className="device-camera-video" autoPlay muted playsInline aria-label="Connected device camera preview" />
+        )}
+
+        {/* Live AI Streaming Video (from backend WebSocket) */}
+        {liveTelemetry?.image_base64 && !uploadedVideoUrl && (
+          <img 
+            src={`data:image/jpeg;base64,${liveTelemetry.image_base64}`} 
+            className="device-camera-video" 
+            alt="Live AI Stream"
+            style={{ width: '100%', height: '100%', objectFit: 'fill' }}
+          />
         )}
 
         {/* Uploaded Video Stream Playback */}
@@ -103,41 +113,38 @@ export default function MainFeed({
         )}
 
         {/* Real-Time Bounding Box AI Overlays */}
-        {hasVideoSource && bboxes.length > 0 && (
+        {(hasVideoSource || liveTelemetry?.image_base64) && bboxes.length > 0 && (
           <div className="overlay-layer" style={{ pointerEvents: 'none', zIndex: 5 }}>
             {bboxes.map((box, i) => {
               const isComp = box.is_compliant
               const [x1, y1, x2, y2] = box.bbox || [100, 100, 300, 450]
               
-              // Frame coordinates normalized to 1280x720 video container
-              const leftPct = Math.max(0, Math.min(95, ((x1 / 1280) * 100))).toFixed(2)
-              const topPct = Math.max(0, Math.min(95, ((y1 / 720) * 100))).toFixed(2)
-              const widthPct = Math.max(3, Math.min(90, (((x2 - x1) / 1280) * 100))).toFixed(2)
-              const heightPct = Math.max(3, Math.min(90, (((y2 - y1) / 720) * 100))).toFixed(2)
+              // Frame coordinates normalized to the resolution sent by the backend (or fallback to 1280x720)
+              const refWidth = liveTelemetry?.resolution?.width || 1280
+              const refHeight = liveTelemetry?.resolution?.height || 720
+              
+              const leftPct = Math.max(0, Math.min(95, ((x1 / refWidth) * 100))).toFixed(2)
+              const topPct = Math.max(0, Math.min(95, ((y1 / refHeight) * 100))).toFixed(2)
+              const widthPct = Math.max(3, Math.min(90, (((x2 - x1) / refWidth) * 100))).toFixed(2)
+              const heightPct = Math.max(3, Math.min(90, (((y2 - y1) / refHeight) * 100))).toFixed(2)
 
               return (
                 <div 
                   key={box.tracker_id || i}
                   style={{
                     position: 'absolute',
-                    left: `${leftPct}%`,
-                    top: `${topPct}%`,
-                    width: `${widthPct}%`,
-                    height: `${heightPct}%`,
-                    border: isComp ? '2px solid #00e676' : '2px solid #ff3d57',
-                    borderRadius: '4px',
-                    background: isComp ? 'rgba(0, 230, 118, 0.08)' : 'rgba(255, 61, 87, 0.12)',
-                    boxShadow: isComp ? '0 0 12px rgba(0, 230, 118, 0.35)' : '0 0 14px rgba(255, 61, 87, 0.45)',
-                    color: isComp ? '#a9f0c7' : '#ffacb5',
-                    pointerEvents: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.08s ease-out'
+                    left: 0,
+                    top: 0,
+                    width: '100%',
+                    height: '100%',
+                    pointerEvents: 'none'
                   }}
                 >
+                  {/* ID Tag (Anchored to person's top-left) */}
                   <div style={{
                     position: 'absolute',
-                    top: '-22px',
-                    left: '-2px',
+                    top: `calc(${topPct}% - 22px)`,
+                    left: `${leftPct}%`,
                     background: isComp ? '#00c853' : '#d50000',
                     color: '#ffffff',
                     padding: '2px 6px',
@@ -149,83 +156,61 @@ export default function MainFeed({
                     boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px'
+                    gap: '4px',
+                    zIndex: 10
                   }}>
                     <span>{box.tracker_id}</span>
-                    <span style={{ opacity: 0.7 }}>|</span>
-                    <span>{box.status_label || (isComp ? 'Compliant' : 'Non-Compliant')}</span>
                   </div>
 
-                  {/* Helmet Sub-Box Overlay */}
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: '32%',
-                    border: box.ppe_state?.helmet_state === 'PRESENT' ? '1px solid #00f0ff' : '1px dashed #ff3d57',
-                    background: box.ppe_state?.helmet_state === 'PRESENT' ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255, 61, 87, 0.22)',
-                    boxSizing: 'border-box'
-                  }}>
-                    <span style={{
-                      position: 'absolute',
-                      top: '2px',
-                      left: '2px',
-                      fontSize: '8px',
-                      fontWeight: 700,
-                      color: box.ppe_state?.helmet_state === 'PRESENT' ? '#00f0ff' : '#ff9da8',
-                      background: 'rgba(0,0,0,0.65)',
-                      padding: '1px 3px',
-                      borderRadius: '2px'
-                    }}>
-                      {box.ppe_state?.helmet_state === 'PRESENT' ? 'Helmet ✓' : 'NO HELMET ✗'}
-                    </span>
-                  </div>
+                  {/* Render True Sub-Boxes */}
+                  {box.sub_boxes && box.sub_boxes.map((sub, idx) => {
+                    if (!sub.bbox) return null;
+                    const [sx1, sy1, sx2, sy2] = sub.bbox;
+                    const sLeft = Math.max(0, Math.min(95, ((sx1 / refWidth) * 100))).toFixed(2);
+                    const sTop = Math.max(0, Math.min(95, ((sy1 / refHeight) * 100))).toFixed(2);
+                    const sWidth = Math.max(2, Math.min(90, (((sx2 - sx1) / refWidth) * 100))).toFixed(2);
+                    const sHeight = Math.max(2, Math.min(90, (((sy2 - sy1) / refHeight) * 100))).toFixed(2);
 
-                  {/* Vest Sub-Box Overlay */}
-                  <div style={{
-                    position: 'absolute',
-                    top: '20%',
-                    left: 0,
-                    right: 0,
-                    height: '55%',
-                    border: box.ppe_state?.vest_state === 'PRESENT' ? '1px solid #00e676' : '1px dashed #ff3d57',
-                    background: box.ppe_state?.vest_state === 'PRESENT' ? 'rgba(0, 230, 118, 0.15)' : 'rgba(255, 61, 87, 0.22)',
-                    boxSizing: 'border-box'
-                  }}>
-                    <span style={{
-                      position: 'absolute',
-                      top: '2px',
-                      left: '2px',
-                      fontSize: '8px',
-                      fontWeight: 700,
-                      color: box.ppe_state?.vest_state === 'PRESENT' ? '#a9f0c7' : '#ff9da8',
-                      background: 'rgba(0,0,0,0.65)',
-                      padding: '1px 3px',
-                      borderRadius: '2px'
-                    }}>
-                      {box.ppe_state?.vest_state === 'PRESENT' ? 'Vest ✓' : 'NO VEST ✗'}
-                    </span>
-                  </div>
+                    let colorCode = '#ffffff';
+                    let bgCode = 'rgba(255,255,255,0.2)';
+                    if (sub.type === 'helmet') {
+                      colorCode = sub.is_ok ? '#00f0ff' : '#ff3d57';
+                      bgCode = sub.is_ok ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255, 61, 87, 0.22)';
+                    } else if (sub.type === 'vest') {
+                      colorCode = sub.is_ok ? '#00e676' : '#ff3d57';
+                      bgCode = sub.is_ok ? 'rgba(0, 230, 118, 0.15)' : 'rgba(255, 61, 87, 0.22)';
+                    } else if (sub.type === 'gloves') {
+                      colorCode = sub.is_ok ? '#ffd700' : '#ff3d57';
+                      bgCode = sub.is_ok ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255, 61, 87, 0.22)';
+                    }
 
-                  <div style={{
-                    position: 'absolute',
-                    bottom: '2px',
-                    left: '2px',
-                    right: '2px',
-                    fontSize: '9px',
-                    fontFamily: 'var(--monitor-mono, monospace)',
-                    background: 'rgba(5, 15, 28, 0.85)',
-                    padding: '2px 4px',
-                    borderRadius: '3px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: '4px',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    <span>{box.zone_name || 'Bay'}</span>
-                  </div>
+                    return (
+                      <div key={idx} style={{
+                        position: 'absolute',
+                        left: `${sLeft}%`,
+                        top: `${sTop}%`,
+                        width: `${sWidth}%`,
+                        height: `${sHeight}%`,
+                        border: sub.is_ok ? `1px solid ${colorCode}` : `1px dashed ${colorCode}`,
+                        background: bgCode,
+                        boxSizing: 'border-box'
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          top: '2px',
+                          left: '2px',
+                          fontSize: '8px',
+                          fontWeight: 700,
+                          color: colorCode,
+                          background: 'rgba(0,0,0,0.65)',
+                          padding: '1px 3px',
+                          borderRadius: '2px'
+                        }}>
+                          {sub.label}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               )
             })}

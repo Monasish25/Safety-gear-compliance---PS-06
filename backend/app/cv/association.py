@@ -108,6 +108,7 @@ class PPEAssociationEngine:
         helmet_state = "NOT_VISIBLE" if visibility_quality == "OCCLUDED" else "MISSING"
         helmet_confidence = 0.0
         best_helmet_overlap = 0.0
+        helmet_bbox = None
 
         for item in detected_ppe:
             if item["label"] == "helmet":
@@ -117,11 +118,13 @@ class PPEAssociationEngine:
                         best_helmet_overlap = overlap
                         helmet_confidence = item.get("confidence", 0.9)
                         helmet_state = "PRESENT"
+                        helmet_bbox = item["bbox"]
 
         # 2. Vest Evaluation
         vest_state = "NOT_VISIBLE" if visibility_quality == "OCCLUDED" else "MISSING"
         vest_confidence = 0.0
         best_vest_overlap = 0.0
+        vest_bbox = None
 
         for item in detected_ppe:
             if item["label"] in ["vest", "safety_vest"]:
@@ -131,21 +134,44 @@ class PPEAssociationEngine:
                         best_vest_overlap = overlap
                         vest_confidence = item.get("confidence", 0.88)
                         vest_state = "PRESENT"
+                        vest_bbox = item["bbox"]
 
+        # 3. Gloves Evaluation
+        gloves_state = "NOT_VISIBLE" if visibility_quality == "OCCLUDED" else "MISSING"
+        gloves_confidence = 0.0
+        best_gloves_overlap = 0.0
+        gloves_bbox = None
+
+        for item in detected_ppe:
+            if item["label"] == "gloves":
+                overlap = calculate_box_overlap(person_bbox, item["bbox"])
+                if overlap > 0.0:  # Any overlap with the person
+                    if overlap > best_gloves_overlap:
+                        best_gloves_overlap = overlap
+                        gloves_confidence = item.get("confidence", 0.85)
+                        gloves_state = "PRESENT"
+                        gloves_bbox = item["bbox"]
+                        
         # Dust/Dim Scene -> Uncertainty logic (PRD Section 14)
-        if visibility_quality == "POOR" and (helmet_state == "MISSING" or vest_state == "MISSING"):
-            # Never alert on dust/blur without certainty
+        if visibility_quality == "POOR" and (helmet_state == "MISSING" or vest_state == "MISSING" or gloves_state == "MISSING"):
             if helmet_state == "MISSING":
                 helmet_state = "UNCERTAIN"
             if vest_state == "MISSING":
                 vest_state = "UNCERTAIN"
+            if gloves_state == "MISSING":
+                gloves_state = "UNCERTAIN"
 
         return {
             "head_bbox": head_box,
             "torso_bbox": torso_box,
             "helmet_state": helmet_state,
             "helmet_confidence": helmet_confidence,
+            "helmet_bbox": helmet_bbox,
             "vest_state": vest_state,
             "vest_confidence": vest_confidence,
+            "vest_bbox": vest_bbox,
+            "gloves_state": gloves_state,
+            "gloves_confidence": gloves_confidence,
+            "gloves_bbox": gloves_bbox,
             "visibility_quality": visibility_quality
         }

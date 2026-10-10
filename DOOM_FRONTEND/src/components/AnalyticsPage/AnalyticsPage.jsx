@@ -14,7 +14,14 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/,
 const REFRESH_INTERVAL = 15000
 
 async function getBackendData(path, signal) {
-  const response = await fetch(`${API_BASE}${path}`, { signal, headers: { Accept: 'application/json' } })
+  const token = localStorage.getItem('token')
+  const response = await fetch(`${API_BASE}${path}`, { 
+    signal, 
+    headers: { 
+      'Accept': 'application/json',
+      'Authorization': token ? `Bearer ${token}` : ''
+    } 
+  })
   if (!response.ok) throw new Error(`Backend returned ${response.status}`)
   return response.json()
 }

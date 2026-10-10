@@ -3,7 +3,7 @@ import uuid
 import asyncio
 from pathlib import Path
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -21,7 +21,9 @@ from app.api import (
     videos,
     copilot,
     ws,
+    auth,
 )
+from app.core.security import get_current_user
 from app.demo_generator import generate_demo_video
 from app.models import schema
 
@@ -58,13 +60,19 @@ app.add_middleware(
 )
 
 # Active API Routers
-app.include_router(cameras.router, prefix=settings.API_V1_STR)
-app.include_router(zones.router, prefix=settings.API_V1_STR)
-app.include_router(ppe_rules.router, prefix=settings.API_V1_STR)
-app.include_router(events.router, prefix=settings.API_V1_STR)
-app.include_router(analytics.router, prefix=settings.API_V1_STR)
-app.include_router(videos.router, prefix=settings.API_V1_STR)
-app.include_router(copilot.router, prefix=settings.API_V1_STR)
+app.include_router(auth.router, prefix=settings.API_V1_STR)
+
+# Secure routes requiring valid JWT
+secure_depends = [Depends(get_current_user)]
+app.include_router(cameras.router, prefix=settings.API_V1_STR, dependencies=secure_depends)
+app.include_router(zones.router, prefix=settings.API_V1_STR, dependencies=secure_depends)
+app.include_router(ppe_rules.router, prefix=settings.API_V1_STR, dependencies=secure_depends)
+app.include_router(events.router, prefix=settings.API_V1_STR, dependencies=secure_depends)
+app.include_router(analytics.router, prefix=settings.API_V1_STR, dependencies=secure_depends)
+app.include_router(videos.router, prefix=settings.API_V1_STR, dependencies=secure_depends)
+app.include_router(copilot.router, prefix=settings.API_V1_STR, dependencies=secure_depends)
+
+# WebSockets use connection-level auth, no global HTTP dependency here
 app.include_router(ws.router, prefix=settings.API_V1_STR)
 
 

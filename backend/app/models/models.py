@@ -263,6 +263,21 @@ class ModelRun(Base):
     ended_at = Column(DateTime(timezone=True), nullable=True)
 
 
+class User(Base):
+    """User entity for dashboard authentication and authorization."""
+    __tablename__ = "users"
+
+    user_id = Column(String(36), primary_key=True, default=gen_uuid)
+    id = synonym("user_id")
+
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    full_name = Column(String(255), nullable=True)
+    role = Column(String(50), nullable=False, default="supervisor")  # admin, supervisor, guard
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 # Backward compatibility class aliases
 PPERule = ComplianceRule
 SafetyEvent = Alert

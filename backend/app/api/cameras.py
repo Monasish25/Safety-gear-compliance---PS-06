@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import schema
 from app.schemas import dto
+from app.cv.rtsp_worker import rtsp_manager
 
 router = APIRouter(prefix="/cameras", tags=["Cameras"])
 
@@ -92,3 +93,42 @@ async def delete_camera(camera_id: str, db: Session = Depends(get_db)):
 async def get_camera_zones(camera_id: str, db: Session = Depends(get_db)):
     """Get all zones associated with a given camera."""
     return db.query(schema.Zone).filter(schema.Zone.camera_id == camera_id).all()
+
+
+@router.post("/{camera_id}/stream/start")
+async def start_camera_stream(camera_id: str, db: Session = Depends(get_db)):
+    """Starts the background RTSP vision pipeline for a specific camera."""
+    cam = db.query(schema.Camera).filter(
+        (schema.Camera.camera_id == camera_id) | (schema.Camera.id == camera_id)
+    ).first()
+    if not cam:
+        raise HTTPException(status_code=404, detail="Camera not found")
+        
+    # Fallback mock RTSP URL if the camera has no URL configured
+    stream_url = cam.stream_url or f"rtsp://mock-camera.local:8554/cam/{camera_id}"
+    
+    success, msg = rtsp_manager.start_stream(camera_id, stream_url)
+    if not success:
+        raise HTTPException(status_code=400, detail=msg)
+    
+    # Ensure camera is marked active
+    cam.is_active = True
+    db.commit()
+    
+    return {"status": "success", "message": msg, "camera_id": camera_id}
+
+
+@router.post("/{camera_id}/stream/stop")
+async def stop_camera_stream(camera_id: str):
+    """Stops the background RTSP vision pipeline for a specific camera."""
+    success, msg = rtsp_manager.stop_stream(camera_id)
+    if not success:
+        raise HTTPException(status_code=400, detail=msg)
+    
+    return {"status": "success", "message": msg, "camera_id": camera_id}
+
+
+@router.get("/streams/status")
+async def get_active_streams_status():
+    """Returns the status and uptime of all actively running RTSP stream workers."""
+    return rtsp_manager.get_status()

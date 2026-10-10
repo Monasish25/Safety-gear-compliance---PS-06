@@ -54,7 +54,10 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
   useEffect(() => {
     async function fetchInitialEvents() {
       try {
-        const res = await fetch(`${API_BASE}/events?limit=25`)
+        const token = localStorage.getItem('token')
+        const res = await fetch(`${API_BASE}/events?limit=25`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        })
         if (!res.ok) return
         const data = await res.json()
         const items = Array.isArray(data) ? data : data.items || []
@@ -78,7 +81,10 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
     // Auto-load default CCTV footage feed from backend/storage/uploads
     async function loadInitialFeed() {
       try {
-        const res = await fetch(`${API_BASE}/videos/library`)
+        const token = localStorage.getItem('token')
+        const res = await fetch(`${API_BASE}/videos/library`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        })
         if (!res.ok) return
         const data = await res.json()
         const videos = data.videos || []
@@ -114,7 +120,8 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
 
     const connectWs = () => {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsUrl = `${protocol}//${window.location.host}/ws/alerts`
+      const token = localStorage.getItem('token')
+      const wsUrl = `${protocol}//${window.location.host}${API_BASE}/ws/alerts${token ? `?token=${token}` : ''}`
       
       ws = new WebSocket(wsUrl)
 
@@ -161,7 +168,10 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
 
     const pollStatus = async () => {
       try {
-        const res = await fetch(`${API_BASE}/videos/${uploadedVideoId}/status`)
+        const token = localStorage.getItem('token')
+        const res = await fetch(`${API_BASE}/videos/${uploadedVideoId}/status`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        })
         if (!res.ok) return
         const data = await res.json()
         if (data.status === 'COMPLETED' && isSubscribed) {
@@ -209,8 +219,10 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
     }
     try {
       notify(`Launching YOLO PPE & Hazard AI analysis on ${feed.id || 'CCTV'} (${feed.place || feed.filename})...`)
+      const token = localStorage.getItem('token')
       const res = await fetch(`${API_BASE}/videos/library/${encodeURIComponent(feed.filename)}/process?camera_id=${feed.id || 'CAM_01'}`, {
-        method: 'POST'
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
@@ -304,7 +316,11 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
   async function handleTriggerDemo() {
     try {
       notify('Generating & launching demo video simulation...')
-      const res = await fetch(`${API_BASE}/demo/generate-and-run`, { method: 'POST' })
+      const token = localStorage.getItem('token')
+      const res = await fetch(`${API_BASE}/demo/generate-and-run`, { 
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {} 
+      })
       if (!res.ok) throw new Error('Demo generation failed')
       const data = await res.json()
       handleUploadSuccess(data.video_id, 'demo_simulated_factory.mp4')

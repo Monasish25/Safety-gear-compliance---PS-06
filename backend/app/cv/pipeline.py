@@ -41,9 +41,10 @@ class SafetyPipeline:
             overlap_threshold=0.35
         )
         self.temporal_engine = TemporalConfirmationEngine(
+            consecutive_frames_required=1,  # INSTANT Trigger for demo
+            cooldown_sec=5,                 # 5 second cooldown instead of 5 minutes
             helmet_confirm_sec=settings.CONFIRMATION_TIME_HELMET_SEC,
-            vest_confirm_sec=settings.CONFIRMATION_TIME_VEST_SEC,
-            cooldown_sec=settings.ALERT_COOLDOWN_SEC
+            vest_confirm_sec=settings.CONFIRMATION_TIME_VEST_SEC
         )
         self.zone_engine = None
         self._load_zones_and_rules()
@@ -156,10 +157,32 @@ class SafetyPipeline:
         start_time = time.time()
         annotated_frame = frame.copy()
 
-        # 1. Run YOLO Object Detection
+        # 1. Run YOLO Object Detection (0.35 is clean, Tracker will buffer any dropped frames)
         detections = self.detector.detect_frame(frame, conf_threshold=0.35)
-        raw_persons = detections["persons"]
+        raw_persons_candidates = detections["persons"]
         detected_ppe = detections["ppe_items"]
+
+        # Run Custom IoU-Based Non-Maximum Suppression (NMS) to prevent duplicate boxes on 1 person
+        def _compute_iou(boxA, boxB):
+            xA = max(boxA[0], boxB[0])
+            yA = max(boxA[1], boxB[1])
+            xB = min(boxA[2], boxB[2])
+            yB = min(boxA[3], boxB[3])
+            inter_area = max(0, xB - xA) * max(0, yB - yA)
+            boxAArea = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1])
+            boxBArea = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1])
+            iou = inter_area / float(boxAArea + boxBArea - inter_area) if (boxAArea + boxBArea - inter_area) > 0 else 0
+            return iou
+
+        raw_persons = []
+        for cand in sorted(raw_persons_candidates, key=lambda x: x['confidence'], reverse=True):
+            is_duplicate = False
+            for kept in raw_persons:
+                if _compute_iou(cand["bbox"], kept["bbox"]) > 0.35:
+                    is_duplicate = True
+                    break
+            if not is_duplicate:
+                raw_persons.append(cand)
 
         # 2. Run Anonymous Worker Tracking (ByteTrack logic)
         tracked_workers = self.tracker.update(raw_persons, current_time=timestamp)
@@ -178,7 +201,7 @@ class SafetyPipeline:
                 zone_info = self.zone_engine.get_zone_for_person(person_bbox) if self.zone_engine else None
                 zone_id = zone_info["id"] if zone_info else "ZONE_GENERAL"
                 zone_name = zone_info.get("name", zone_id) if zone_info else "General Factory Floor"
-                compliance_rule = self.ppe_rules_map.get(zone_id, {"helmet_required": True, "vest_required": True})
+                compliance_rule = self.ppe_rules_map.get(zone_id, {"helmet_required": True, "vest_required": True, "gloves_required": True})
 
                 # 4. IoU Spatial Association (Head top 30% / Torso middle 25%-70%)
                 ppe_state = self.association_engine.assess_person_ppe(
@@ -199,25 +222,36 @@ class SafetyPipeline:
                 if not is_compliant:
                     worker_violations.append(violation_reason)
 
-                # Build Sub-Boxes for PPE equipment (Helmet, Vest)
-                p_h = person_bbox[3] - person_bbox[1]
+                # Build Sub-Boxes for PPE equipment dynamically
                 helmet_ok = (ppe_state.get("helmet_state") == "PRESENT")
                 vest_ok = (ppe_state.get("vest_state") == "PRESENT")
+                gloves_ok = (ppe_state.get("gloves_state") == "PRESENT")
+                
+                helmet_box = ppe_state.get("helmet_bbox") or ppe_state.get("head_bbox")
+                vest_box = ppe_state.get("vest_bbox") or ppe_state.get("torso_bbox")
+                gloves_box = ppe_state.get("gloves_bbox") # Gloves have no fallback, they just vanish if not detected
 
                 sub_boxes = [
                     {
                         "type": "helmet",
                         "label": "Helmet OK" if helmet_ok else "NO HELMET",
                         "is_ok": helmet_ok,
-                        "bbox": [float(person_bbox[0]), float(person_bbox[1]), float(person_bbox[2]), float(person_bbox[1] + p_h * 0.32)]
+                        "bbox": [float(b) for b in helmet_box] if helmet_box else None
                     },
                     {
                         "type": "vest",
                         "label": "Vest OK" if vest_ok else "NO VEST",
                         "is_ok": vest_ok,
-                        "bbox": [float(person_bbox[0]), float(person_bbox[1] + p_h * 0.20), float(person_bbox[2]), float(person_bbox[1] + p_h * 0.75)]
+                        "bbox": [float(b) for b in vest_box] if vest_box else None
                     }
                 ]
+                if gloves_box:
+                    sub_boxes.append({
+                        "type": "gloves",
+                        "label": "Gloves OK" if gloves_ok else "NO GLOVES",
+                        "is_ok": gloves_ok,
+                        "bbox": [float(b) for b in gloves_box]
+                    })
 
                 # Bounding Box Telemetry
                 frame_bboxes.append({
@@ -312,21 +346,23 @@ class SafetyPipeline:
                 # 8. Draw Bounding Box & Bounding Sub-Boxes on OpenCV Frame
                 x1, y1, x2, y2 = map(int, person_bbox)
                 main_color = (0, 230, 118) if is_compliant else (0, 40, 245)  # Green if Compliant, Red if Violation
-                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), main_color, 2)
                 label_str = f"{tracker_id} | {status_label}"
                 cv2.putText(annotated_frame, label_str, (x1, max(y1 - 8, 15)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, main_color, 2)
 
-                # Sub-Box 1: Helmet / Head Region
-                hx1, hy1, hx2, hy2 = x1, y1, x2, min(y2, y1 + int(p_h * 0.32))
-                helmet_color = (255, 235, 0) if helmet_ok else (0, 40, 245)
-                cv2.rectangle(annotated_frame, (hx1, hy1), (hx2, hy2), helmet_color, 1)
-                cv2.putText(annotated_frame, "Helmet: OK" if helmet_ok else "NO HELMET", (hx1 + 2, hy1 + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.4, helmet_color, 1)
-
-                # Sub-Box 2: Vest / Torso Region
-                tx1, ty1, tx2, ty2 = x1, y1 + int(p_h * 0.20), x2, min(y2, y1 + int(p_h * 0.75))
-                vest_color = (0, 255, 128) if vest_ok else (0, 40, 245)
-                cv2.rectangle(annotated_frame, (tx1, ty1), (tx2, ty2), vest_color, 1)
-                cv2.putText(annotated_frame, "Vest: OK" if vest_ok else "NO VEST", (tx1 + 2, ty1 + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.4, vest_color, 1)
+                # Draw sub-boxes dynamically
+                for sub in sub_boxes:
+                    if not sub["bbox"]: continue
+                    sx1, sy1, sx2, sy2 = map(int, sub["bbox"])
+                    color = (255, 255, 255)
+                    if sub["type"] == "helmet":
+                        color = (255, 235, 0) if sub["is_ok"] else (0, 40, 245)
+                    elif sub["type"] == "vest":
+                        color = (0, 255, 128) if sub["is_ok"] else (0, 40, 245)
+                    elif sub["type"] == "gloves":
+                        color = (0, 215, 255) if sub["is_ok"] else (0, 40, 245)
+                    
+                    cv2.rectangle(annotated_frame, (sx1, sy1), (sx2, sy2), color, 1)
+                    cv2.putText(annotated_frame, sub["label"], (sx1 + 2, sy1 + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
 
             # Draw Hazard Smoke & Fire Bounding Boxes
             for s_box in detections.get("smoke_boxes", []):
@@ -343,6 +379,17 @@ class SafetyPipeline:
             is_frame_compliant = (len(worker_violations) == 0)
             violation_str = "; ".join(worker_violations) if worker_violations else "All active workers fully compliant"
 
+            # Compress the raw frame to a highly optimized JPEG for WebSockets
+            import base64
+            # Resize frame slightly to reduce WebSocket network latency
+            small_frame = cv2.resize(frame, (854, 480))
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 65]
+            _, buffer = cv2.imencode('.jpg', small_frame, encode_param)
+            image_b64 = base64.b64encode(buffer).decode('utf-8')
+
+            # Extract native resolution for correct bounding box scaling on frontend
+            orig_h, orig_w = frame.shape[:2]
+
             # Dispatch Real-Time Frame Telemetry
             telemetry_payload = {
                 "type": "FRAME_TELEMETRY",
@@ -352,7 +399,9 @@ class SafetyPipeline:
                 "bounding_boxes": frame_bboxes,
                 "compliance_state": "Compliant" if is_frame_compliant else "Non-Compliant",
                 "violation_reason": violation_str,
-                "inference_time_ms": round(inference_ms, 2)
+                "inference_time_ms": round(inference_ms, 2),
+                "image_base64": image_b64,
+                "resolution": {"width": orig_w, "height": orig_h} # Real native scale
             }
 
             if on_frame_callback:

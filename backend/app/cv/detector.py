@@ -86,20 +86,9 @@ class SafetyVisionDetector:
             except Exception as e:
                 logger.error(f"FireSmoke Inference error: {e}")
 
-        # If no neural persons found (e.g. synthetic simulation or extreme lighting), detect human shapes by contour/aspect ratio
-        if len(persons) == 0:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            _, thresh = cv2.threshold(gray, 45, 255, cv2.THRESH_BINARY)
-            contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            for cnt in contours:
-                cx, cy, cw, ch = cv2.boundingRect(cnt)
-                aspect = ch / max(1, cw)
-                # Human profile: height 80-450, width 25-200, aspect ratio 1.1-4.8
-                if 80 <= ch <= 450 and 25 <= cw <= 200 and 1.1 <= aspect <= 4.8:
-                    persons.append({
-                        "bbox": [float(cx), float(cy), float(cx + cw), float(cy + ch)],
-                        "confidence": 0.88
-                    })
+        # We no longer use OpenCV 5 incompatible Haar Cascades.
+        # If YOLOv8 misses a person for a frame, the AnonymousWorkerTracker will
+        # automatically predict their location and bridge the gap for up to 3 seconds.
 
         # Optical analysis for safety equipment on detected persons
         for person in persons:

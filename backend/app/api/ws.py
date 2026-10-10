@@ -3,7 +3,10 @@ import json
 import datetime
 import uuid
 from typing import List, Dict, Any
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from app.core.security import get_ws_user
 from pydantic import BaseModel
 
 logger = logging.getLogger("safegear.ws")
@@ -86,16 +89,50 @@ async def handle_websocket_connection(websocket: WebSocket, stream_name: str = "
 
 
 @router.websocket("/ws/alerts")
-async def websocket_alerts_endpoint(websocket: WebSocket):
+async def websocket_alerts_endpoint(
+    websocket: WebSocket, 
+    token: str = Query(None), 
+    db: Session = Depends(get_db)
+):
+    user = await get_ws_user(token, db) if token else None
+    if not user:
+        await websocket.close(code=1008, reason="Unauthorized")
+        return
     await handle_websocket_connection(websocket, stream_name="alerts")
 
 
 @router.websocket("/ws/telemetry")
-async def websocket_telemetry_endpoint(websocket: WebSocket):
+async def websocket_telemetry_endpoint(
+    websocket: WebSocket, 
+    token: str = Query(None), 
+    db: Session = Depends(get_db)
+):
+    user = await get_ws_user(token, db) if token else None
+    if not user:
+        await websocket.close(code=1008, reason="Unauthorized")
+        return
     await handle_websocket_connection(websocket, stream_name="telemetry")
 
 
 @router.websocket("/ws/live")
-async def websocket_live_endpoint(websocket: WebSocket):
+async def websocket_live_endpoint(
+    websocket: WebSocket, 
+    token: str = Query(None), 
+    db: Session = Depends(get_db)
+):
+    user = await get_ws_user(token, db) if token else None
+    if not user:
+        await websocket.close(code=1008, reason="Unauthorized")
+        return
     await handle_websocket_connection(websocket, stream_name="live")
+
+
+@router.post("/internal/broadcast")
+async def internal_broadcast(payload: Dict[str, Any]):
+    """Internal webhook for standalone workers to broadcast WebSocket telemetry/alerts."""
+    if payload.get("type") == "NEW_ALERT":
+        await manager.broadcast_alert(payload)
+    else:
+        await manager.broadcast_telemetry(payload)
+    return {"status": "ok"}
 

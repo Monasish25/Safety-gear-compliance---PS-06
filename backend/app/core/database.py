@@ -6,29 +6,29 @@ from app.core.config import settings
 
 logger = logging.getLogger("safegear.database")
 
-# Create engine with sqlite support if applicable or PostgreSQL
+# Production PostgreSQL Engine (Supabase)
 connect_args = {}
-if "sqlite" in settings.DATABASE_URL:
-    connect_args = {"check_same_thread": False}
+if settings.DATABASE_URL.startswith("postgres://"):
+    settings.DATABASE_URL = settings.DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+elif settings.DATABASE_URL.startswith("postgresql://") and not settings.DATABASE_URL.startswith("postgresql+"):
+    settings.DATABASE_URL = settings.DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 try:
     engine = create_engine(
         settings.DATABASE_URL,
         connect_args=connect_args,
-        pool_pre_ping=True
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+        pool_timeout=30,
+        pool_recycle=1800,
     )
     # Test connection
     with engine.connect() as conn:
-        pass
+        logger.info("Successfully connected to Production PostgreSQL (Supabase).")
 except Exception as e:
-    logger.warning(f"PostgreSQL connection failed ({e}). Falling back to local SQLite database.")
-    sqlite_path = settings.LOCAL_STORAGE_DIR / "safety_local.db"
-    settings.LOCAL_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-    engine = create_engine(
-        f"sqlite:///{sqlite_path}",
-        connect_args={"check_same_thread": False},
-        pool_pre_ping=True
-    )
+    logger.critical(f"FATAL: PostgreSQL connection failed. Production system cannot start without database. Error: {e}")
+    raise e
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

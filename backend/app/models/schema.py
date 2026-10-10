@@ -18,6 +18,7 @@ from app.models.models import (
     DailyZoneSummary,
     Worker,
     ModelRun,
+    User,
 )
 
 __all__ = [
@@ -36,4 +37,5 @@ __all__ = [
     "DailyZoneSummary",
     "Worker",
     "ModelRun",
+    "User",
 ]
