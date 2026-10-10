@@ -35,7 +35,6 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
   const [uploadedVideoUrl, setUploadedVideoUrl] = useState(null)
   const [uploadedVideoId, setUploadedVideoId] = useState(null)
   const [uploadedVideoName, setUploadedVideoName] = useState('')
-  const [liveTelemetry, setLiveTelemetry] = useState(null)
   const [threats, setThreats] = useState([])
 
   const streamRef = useRef(null)
@@ -62,7 +61,7 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
         const data = await res.json()
         const items = Array.isArray(data) ? data : data.items || []
         const formatted = items.map((evt) => ({
-          id: evt.alert_id || evt.id || `ALT-${Math.floor(Math.random()*1000)}`,
+          id: evt.alert_id || evt.id || `ALT-${Math.floor(Math.random() * 1000)}`,
           kind: (evt.severity || 'high').toLowerCase(),
           title: (evt.event_type || 'PPE VIOLATION').replaceAll('_', ' '),
           time: new Date(evt.triggered_at || evt.timestamp || Date.now()).toLocaleTimeString(),
@@ -113,24 +112,30 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
     loadInitialFeed()
   }, [])
 
-  // WebSocket Live Telemetry & Alert Stream Connection
+  // WebSocket Alert Stream Connection
   useEffect(() => {
     let ws = null
     let reconnectTimeout = null
 
     const connectWs = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       const token = localStorage.getItem('token')
-      const wsUrl = `${protocol}//${window.location.host}${API_BASE}/ws/alerts${token ? `?token=${token}` : ''}`
+      let wsUrl = ''
+      
+      if (API_BASE.startsWith('http')) {
+        // Handle absolute URLs (e.g. from Ngrok or remote cloud)
+        wsUrl = API_BASE.replace(/^http/, 'ws') + `/ws/alerts${token ? `?token=${token}` : ''}`
+      } else {
+        // Handle relative URLs
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        wsUrl = `${protocol}//${window.location.host}${API_BASE}/ws/alerts${token ? `?token=${token}` : ''}`
+      }
       
       ws = new WebSocket(wsUrl)
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
-          if (data.type === 'FRAME_TELEMETRY') {
-            setLiveTelemetry(data)
-          } else if (data.type === 'NEW_ALERT') {
+          if (data.type === 'NEW_ALERT') {
             const alertPayload = data.alert
             const newThreat = {
               id: alertPayload.alert_id || `ALT-${Date.now().toString().slice(-4)}`,
@@ -317,9 +322,9 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
     try {
       notify('Generating & launching demo video simulation...')
       const token = localStorage.getItem('token')
-      const res = await fetch(`${API_BASE}/demo/generate-and-run`, { 
+      const res = await fetch(`${API_BASE}/demo/generate-and-run`, {
         method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {} 
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       })
       if (!res.ok) throw new Error('Demo generation failed')
       const data = await res.json()
@@ -333,7 +338,6 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
     setUploadedVideoUrl(null)
     setUploadedVideoId(null)
     setUploadedVideoName('')
-    setLiveTelemetry(null)
     notify('Uploaded video stream cleared')
   }
 
@@ -360,37 +364,36 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
   return (
     <div className="monitor-page min-h-screen text-white">
       <div className="monitor-nav">
-        <Navbar user={user} theme={theme} onThemeChange={onThemeChange} activePage="live" onOpenHome={onHome} onOpenLive={() => {}} onOpenIncidents={onIncidents} onOpenAnalytics={onAnalytics} onOpenHow={onHow} onSignOut={onSignOut} broadcasting={broadcasting} onBroadcast={emergencyBroadcast} utcTime={clock} muted={muted} onToggleMute={() => setMuted((value) => !value)} />
+        <Navbar user={user} theme={theme} onThemeChange={onThemeChange} activePage="live" onOpenHome={onHome} onOpenLive={() => { }} onOpenIncidents={onIncidents} onOpenAnalytics={onAnalytics} onOpenHow={onHow} onSignOut={onSignOut} broadcasting={broadcasting} onBroadcast={emergencyBroadcast} utcTime={clock} muted={muted} onToggleMute={() => setMuted((value) => !value)} />
       </div>
 
       <main className="monitor-main">
         <StatCards />
         <ZoneControls activeZone={activeZone} setActiveZone={selectZone} view={view} setView={setView} onPtz={() => setPtzOpen((value) => !value)} ir={infrared} setIr={setInfrared} />
-        
+
         <div className="monitor-workspace">
           <div className="monitor-left-column">
-            <MainFeed 
-              feed={selectedFeed} 
-              view={view} 
-              infrared={infrared} 
-              zoom={zoom} 
-              cameraStream={cameraStream} 
-              cameraError={cameraError} 
-              cameraSwitching={cameraSwitching} 
-              cameraSwitchVersion={cameraSwitchVersion} 
-              onCameraSwitchComplete={finishCameraSwitch} 
-              onToggleCamera={toggleDeviceCamera} 
-              onZoom={() => setZoom((value) => Math.min(4, value + .1))} 
+            <MainFeed
+              feed={selectedFeed}
+              view={view}
+              infrared={infrared}
+              zoom={zoom}
+              cameraStream={cameraStream}
+              cameraError={cameraError}
+              cameraSwitching={cameraSwitching}
+              cameraSwitchVersion={cameraSwitchVersion}
+              onCameraSwitchComplete={finishCameraSwitch}
+              onToggleCamera={toggleDeviceCamera}
+              onZoom={() => setZoom((value) => Math.min(4, value + .1))}
               uploadedVideoUrl={uploadedVideoUrl}
               uploadedVideoName={uploadedVideoName}
               uploadedVideoId={uploadedVideoId}
               onOpenUpload={() => setIsUploadOpen(true)}
               onClearUploadedVideo={clearUploadedVideo}
               onAnalyseCurrentVideo={handleAnalyseCurrentVideo}
-              liveTelemetry={liveTelemetry}
             />
-            <PerimeterFeeds 
-              selectedFeed={selectedFeed} 
+            <PerimeterFeeds
+              selectedFeed={selectedFeed}
               activeVideoUrl={uploadedVideoUrl}
               onSelect={selectFeed}
               onAnalyseFeed={(feed) => selectFeed(feed, true)}
@@ -406,7 +409,7 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
       </main>
 
       {ptzOpen && <PtzConsole onZoom={(amount) => setZoom((value) => Math.max(1, Math.min(4, value + amount)))} onClose={() => setPtzOpen(false)} />}
-      
+
       {isUploadOpen && (
         <VideoUploadModal
           onClose={() => setIsUploadOpen(false)}

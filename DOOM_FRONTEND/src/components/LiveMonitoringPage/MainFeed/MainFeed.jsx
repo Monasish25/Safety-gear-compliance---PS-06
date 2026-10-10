@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useUtcTimestamp } from '../utils/liveTime.js'
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
 
 export default function MainFeed({
   feed,
@@ -18,12 +20,52 @@ export default function MainFeed({
   uploadedVideoId,
   onOpenUpload,
   onClearUploadedVideo,
-  onAnalyseCurrentVideo,
-  liveTelemetry
+  onAnalyseCurrentVideo
 }) {
   const stamp = useUtcTimestamp()
   const cameraRef = useRef(null)
   const videoPlayerRef = useRef(null)
+  const [liveTelemetry, setLiveTelemetry] = useState(null)
+
+  useEffect(() => {
+    let ws = null
+    let reconnectTimeout = null
+
+    const connectWs = () => {
+      const token = localStorage.getItem('token')
+      let wsUrl = ''
+      
+      if (API_BASE.startsWith('http')) {
+        wsUrl = API_BASE.replace(/^http/, 'ws') + `/ws/alerts${token ? `?token=${token}` : ''}`
+      } else {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        wsUrl = `${protocol}//${window.location.host}${API_BASE}/ws/alerts${token ? `?token=${token}` : ''}`
+      }
+      
+      ws = new WebSocket(wsUrl)
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          if (data.type === 'FRAME_TELEMETRY') {
+            setLiveTelemetry(data)
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      ws.onclose = () => {
+        reconnectTimeout = setTimeout(connectWs, 4000)
+      }
+    }
+
+    connectWs()
+    return () => {
+      if (ws) ws.close()
+      if (reconnectTimeout) clearTimeout(reconnectTimeout)
+    }
+  }, [])
 
   useEffect(() => {
     if (!cameraRef.current) return
