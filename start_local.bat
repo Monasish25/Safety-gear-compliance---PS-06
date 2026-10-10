@@ -9,7 +9,7 @@ start "SafeGear Backend" cmd /k "cd backend && python -m uvicorn app.main:app --
 timeout /t 3 /nobreak >nul
 
 echo Starting Vite Frontend on port 5173...
-start "SafeGear Frontend" cmd /k "cd frontend && npm run dev"
+start "SafeGear Frontend" cmd /k "cd DOOM_FRONTEND && npm run dev"
 
 timeout /t 3 /nobreak >nul
 

@@ -61,7 +61,7 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./DOOM_FRONTEND
       dockerfile: Dockerfile
     container_name: safegear-frontend
     restart: unless-stopped

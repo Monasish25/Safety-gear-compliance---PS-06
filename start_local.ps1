@@ -9,7 +9,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot
 Start-Sleep -Seconds 3
 
 Write-Host "Starting Vite React Frontend on port 5173..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot/frontend'; npm run dev"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot/DOOM_FRONTEND'; npm run dev"
 
 Start-Sleep -Seconds 3
 
