@@ -1,25 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getApiBase } from '../../../config/api.js'
 
 export default function Snapshot({ incident, small = false }) {
   const [imgError, setImgError] = useState(false)
   const API_BASE = getApiBase()
 
+  useEffect(() => {
+    setImgError(false)
+  }, [incident?.id, incident?.snapshot_path])
+
   if (incident?.snapshot_path && !imgError) {
-    let cleanPath = incident.snapshot_path.replace(/^\/+/, '')
-    if (!cleanPath.startsWith('evidence/') && !cleanPath.includes('evidence/')) {
-      cleanPath = `evidence/${cleanPath}`
-    }
-    const query = cleanPath.includes('?') ? '&ngrok-skip-browser-warning=true' : '?ngrok-skip-browser-warning=true'
-    const imageUrl = `${API_BASE}/${cleanPath}${query}`
+    const filename = String(incident.snapshot_path).replace(/^\/+/, '').replace(/^evidence\//, '')
+    const query = filename.includes('?') ? '&ngrok-skip-browser-warning=true' : '?ngrok-skip-browser-warning=true'
+    const imageUrl = `${API_BASE}/evidence/${filename}${query}`
 
     return (
-      <div className={`incident-snapshot-real ${small ? 'small-thumb' : 'large-thumb'}`}>
+      <div className={`incident-snapshot-real ${small ? 'small-thumb' : 'large-thumb'}`} style={{ width: '100%', height: '100%', overflow: 'hidden', borderRadius: '8px', background: '#070f1e' }}>
         <img 
           src={imageUrl} 
-          alt="Evidence" 
+          alt="Evidence Snapshot" 
           onError={() => setImgError(true)}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} 
+          style={{ width: '100%', height: '100%', objectFit: small ? 'cover' : 'contain', display: 'block', borderRadius: small ? '4px' : '8px' }} 
         />
       </div>
     )

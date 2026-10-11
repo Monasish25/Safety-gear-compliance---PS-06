@@ -9,7 +9,7 @@ export default function IncidentTable({ rows, selectedId, checked, selectedIds, 
   return (
     <section className="repository-card glass-surface" aria-label="Incident repository">
       <div className="repository-heading">
-        <div><p className="eyebrow">INCIDENT STORE</p><h2>INCIDENT REPOSITORY</h2><span>AWAITING INCIDENT SERVICE CONNECTION</span></div>
+        <div><p className="eyebrow">INCIDENT STORE</p><h2>INCIDENT REPOSITORY</h2><span style={{ color: '#10b981' }}>● LIVE AUDIT LOG ACTIVE</span></div>
         <div className="repository-paging"><span>PAGE {page} OF {pageCount}</span><button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>‹</button><button type="button" aria-label="Next page" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>›</button></div>
       </div>
       <div className="table-scroll">

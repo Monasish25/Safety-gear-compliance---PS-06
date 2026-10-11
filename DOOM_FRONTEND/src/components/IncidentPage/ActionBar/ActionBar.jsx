@@ -19,7 +19,7 @@ export default function ActionBar({ onClear, onHome, incidents }) {
         <span className="archive-mark" aria-hidden="true"><i /></span>
         <div>
           <div className="actionbar-title-row"><h1>INCIDENT MANAGEMENT &amp; AUDIT LOG</h1><span className="classified-badge">CLASSIFIED SCADA ARCHIVE</span></div>
-          <p>INCIDENT REPOSITORY STATUS: AWAITING SERVICE CONNECTION</p>
+          <p style={{ color: '#10b981' }}>● INCIDENT REPOSITORY STATUS: CONNECTED &amp; AUDITED</p>
         </div>
       </div>
       <div className="incident-actionbar__buttons">

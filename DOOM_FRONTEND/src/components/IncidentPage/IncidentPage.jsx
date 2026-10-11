@@ -10,6 +10,7 @@ import './IncidentPage.css'
 import { getApiBase } from '../../config/api.js'
 
 export default function IncidentPage({ user, theme, onThemeChange, onHome, onLive, onAnalytics, onHow, onSignOut }) {
+  const API_BASE = getApiBase()
   const [incidents, setIncidents] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [selectedIds, setSelectedIds] = useState([])
@@ -103,7 +104,8 @@ export default function IncidentPage({ user, theme, onThemeChange, onHome, onLiv
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Authorization': token ? `Bearer ${token}` : '',
+          'ngrok-skip-browser-warning': 'true'
         },
         body: JSON.stringify({ status: newStatus, note: 'Updated from Dashboard' })
       })
