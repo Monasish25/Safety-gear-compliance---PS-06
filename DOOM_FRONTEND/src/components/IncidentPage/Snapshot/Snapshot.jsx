@@ -1,11 +1,26 @@
+import { useState } from 'react'
 import { getApiBase } from '../../../config/api.js'
 
 export default function Snapshot({ incident, small = false }) {
+  const [imgError, setImgError] = useState(false)
   const API_BASE = getApiBase()
-  if (incident?.snapshot_path) {
+
+  if (incident?.snapshot_path && !imgError) {
+    let cleanPath = incident.snapshot_path.replace(/^\/+/, '')
+    if (!cleanPath.startsWith('evidence/') && !cleanPath.includes('evidence/')) {
+      cleanPath = `evidence/${cleanPath}`
+    }
+    const query = cleanPath.includes('?') ? '&ngrok-skip-browser-warning=true' : '?ngrok-skip-browser-warning=true'
+    const imageUrl = `${API_BASE}/${cleanPath}${query}`
+
     return (
       <div className={`incident-snapshot-real ${small ? 'small-thumb' : 'large-thumb'}`}>
-        <img src={`${API_BASE}/${incident.snapshot_path}`} alt="Evidence" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
+        <img 
+          src={imageUrl} 
+          alt="Evidence" 
+          onError={() => setImgError(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} 
+        />
       </div>
     )
   }
