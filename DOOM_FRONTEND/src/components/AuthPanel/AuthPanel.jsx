@@ -21,13 +21,28 @@ function LockIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></svg>
 }
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
+import { getApiBase, setApiBase } from '../../config/api.js'
 
 export default function AuthPanel({ onLogin }) {
   const [mode, setMode] = useState('login')
   const [showPassword, setShowPassword] = useState(false)
   const [notice, setNotice] = useState('')
+  const [customUrl, setCustomUrl] = useState('')
+  const [showConfig, setShowConfig] = useState(false)
   const isSignUp = mode === 'signup'
+  const apiBase = getApiBase()
+
+  const handleUpdateEndpoint = (e) => {
+    e.preventDefault()
+    if (!customUrl.trim()) {
+      setApiBase('')
+      setNotice('Reset to default API endpoint')
+    } else {
+      const updated = setApiBase(customUrl)
+      setNotice(`Updated backend endpoint to: ${updated}`)
+    }
+    setShowConfig(false)
+  }
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -35,11 +50,12 @@ export default function AuthPanel({ onLogin }) {
     const values = new FormData(event.currentTarget)
     const email = String(values.get('email') || '').trim().toLowerCase()
     const password = String(values.get('password') || '')
+    const currentApi = getApiBase()
 
     if (isSignUp) {
       const name = String(values.get('name') || '')
       try {
-        const res = await fetch(`${API_BASE}/auth/register`, {
+        const res = await fetch(`${currentApi}/auth/register`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -55,14 +71,19 @@ export default function AuthPanel({ onLogin }) {
         localStorage.setItem('user', JSON.stringify(userObj))
         onLogin?.(userObj)
       } catch (err) {
-        setNotice(err.message)
+        if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+          setNotice(`Cannot reach backend at ${currentApi}. Make sure backend & tunnel are running, or update the Server URL below.`)
+          setShowConfig(true)
+        } else {
+          setNotice(err.message)
+        }
       }
     } else {
       try {
         const params = new URLSearchParams()
         params.append('username', email)
         params.append('password', password)
-        const res = await fetch(`${API_BASE}/auth/token`, {
+        const res = await fetch(`${currentApi}/auth/token`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -78,7 +99,12 @@ export default function AuthPanel({ onLogin }) {
         localStorage.setItem('user', JSON.stringify(userObj))
         onLogin?.(userObj)
       } catch (err) {
-        setNotice(err.message)
+        if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+          setNotice(`Cannot reach backend at ${currentApi}. Make sure backend & tunnel are running, or update the Server URL below.`)
+          setShowConfig(true)
+        } else {
+          setNotice(err.message)
+        }
       }
     }
   }
@@ -160,7 +186,45 @@ export default function AuthPanel({ onLogin }) {
           {!isSignUp && <button className="auth-forgot" type="button" onClick={() => setNotice('Password reset link sent (simulated).')}>Forgot password?</button>}
           <button className="auth-submit" type="submit">{isSignUp ? 'Create account' : 'Sign In'}</button>
         </form>
-        {notice && <p className="auth-notice" role="status">{notice}</p>}
+        {notice && <p className="auth-notice" role="status" style={{ whiteSpace: 'pre-line' }}>{notice}</p>}
+        
+        <div className="auth-server-settings" style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.8rem', textAlign: 'center' }}>
+          <button 
+            type="button" 
+            onClick={() => setShowConfig(!showConfig)}
+            style={{ background: 'none', border: 'none', color: '#63b4f4', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.78rem' }}
+          >
+            {showConfig ? 'Hide Server URL Settings' : `⚙️ Server Endpoint (${apiBase})`}
+          </button>
+
+          {showConfig && (
+            <div style={{ marginTop: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '0.75rem', borderRadius: '6px', border: '1px solid rgba(99,180,244,0.2)' }}>
+              <p style={{ margin: '0 0 0.5rem', color: '#8d9df5', fontSize: '0.75rem' }}>
+                Connected to: <strong style={{ color: '#fff', wordBreak: 'break-all' }}>{apiBase}</strong>
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="text"
+                  placeholder="e.g. https://xxxx.a.pinggy.link/api/v1"
+                  value={customUrl}
+                  onChange={(e) => setCustomUrl(e.target.value)}
+                  style={{ flex: 1, padding: '0.35rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.4)', color: '#fff', fontSize: '0.75rem' }}
+                />
+                <button
+                  type="button"
+                  onClick={handleUpdateEndpoint}
+                  style={{ padding: '0.35rem 0.75rem', borderRadius: '4px', background: '#35D7FF', color: '#000', fontWeight: 'bold', border: 'none', cursor: 'pointer', fontSize: '0.75rem' }}
+                >
+                  Save
+                </button>
+              </div>
+              <p style={{ margin: '0.4rem 0 0', color: '#64748b', fontSize: '0.7rem' }}>
+                Paste your Tunnel URL here if it changes, then Sign In.
+              </p>
+            </div>
+          )}
+        </div>
+
         <p className="auth-footnote">Secure connection <span aria-hidden="true">•</span> E2E Encryption Active</p>
       </div>
       </section>

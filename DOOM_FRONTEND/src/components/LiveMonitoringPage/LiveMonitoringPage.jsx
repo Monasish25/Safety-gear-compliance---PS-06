@@ -12,8 +12,9 @@ import PtzConsole from './PtzConsole/PtzConsole.jsx'
 import Toast from './Toast/Toast.jsx'
 import VideoUploadModal from './VideoUploadModal/VideoUploadModal.jsx'
 import './LiveMonitoringPage.css'
+import { getApiBase, getWsBase } from '../../config/api.js'
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
+const API_BASE = getApiBase()
 
 export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome, onIncidents, onAnalytics, onHow, onSignOut }) {
   const [muted, setMuted] = useState(false)
@@ -118,18 +119,7 @@ export default function LiveMonitoringPage({ user, theme, onThemeChange, onHome,
     let reconnectTimeout = null
 
     const connectWs = () => {
-      const token = localStorage.getItem('token')
-      let wsUrl = ''
-      
-      if (API_BASE.startsWith('http')) {
-        // Handle absolute URLs (e.g. from Ngrok or remote cloud)
-        wsUrl = API_BASE.replace(/^http/, 'ws') + `/ws/alerts${token ? `?token=${token}` : ''}`
-      } else {
-        // Handle relative URLs
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        wsUrl = `${protocol}//${window.location.host}${API_BASE}/ws/alerts${token ? `?token=${token}` : ''}`
-      }
-      
+      const wsUrl = getWsBase('/ws/alerts')
       ws = new WebSocket(wsUrl)
 
       ws.onmessage = (event) => {

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useUtcTimestamp } from '../utils/liveTime.js'
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
+import { getApiBase, getWsBase } from '../../../config/api.js'
 
 export default function MainFeed({
   feed,
@@ -32,16 +31,7 @@ export default function MainFeed({
     let reconnectTimeout = null
 
     const connectWs = () => {
-      const token = localStorage.getItem('token')
-      let wsUrl = ''
-      
-      if (API_BASE.startsWith('http')) {
-        wsUrl = API_BASE.replace(/^http/, 'ws') + `/ws/alerts${token ? `?token=${token}` : ''}`
-      } else {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        wsUrl = `${protocol}//${window.location.host}${API_BASE}/ws/alerts${token ? `?token=${token}` : ''}`
-      }
-      
+      const wsUrl = getWsBase('/ws/alerts')
       ws = new WebSocket(wsUrl)
 
       ws.onmessage = (event) => {
