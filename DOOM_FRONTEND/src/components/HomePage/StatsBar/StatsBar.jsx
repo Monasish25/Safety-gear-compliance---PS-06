@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
+import { getApiBase } from '../../../config/api.js'
 
 function formatSecondsToMMSS(totalSeconds) {
   if (!totalSeconds || isNaN(totalSeconds)) return '04:32'
@@ -17,9 +16,10 @@ export default function StatsBar() {
     let isMounted = true
     async function fetchStats() {
       try {
+        const API_BASE = getApiBase()
         const [analyticsRes, zonesRes] = await Promise.all([
-          fetch(`${API_BASE}/analytics/summary`),
-          fetch(`${API_BASE}/zones`)
+          fetch(`${API_BASE}/analytics/summary`, { headers: { 'ngrok-skip-browser-warning': 'true' } }),
+          fetch(`${API_BASE}/zones`, { headers: { 'ngrok-skip-browser-warning': 'true' } })
         ])
 
         if (analyticsRes.ok && isMounted) {

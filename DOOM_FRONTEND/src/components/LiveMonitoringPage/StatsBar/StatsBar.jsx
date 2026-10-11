@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
+import { getApiBase } from '../../../config/api.js'
 
 export default function StatCards() {
   const [analytics, setAnalytics] = useState(null)
@@ -10,6 +9,7 @@ export default function StatCards() {
     let isMounted = true
     async function loadLiveData() {
       try {
+        const API_BASE = getApiBase()
         const [analyticsRes, camerasRes] = await Promise.all([
           fetch(`${API_BASE}/analytics/summary`),
           fetch(`${API_BASE}/cameras`)

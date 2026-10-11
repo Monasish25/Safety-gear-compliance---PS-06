@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
-
 const ZONES = ['ZONE A', 'ZONE B', 'ZONE C', 'ZONE D']
 const TONES = ['green', 'blue', 'warning', 'purple']
 

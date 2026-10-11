@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import { getApiBase } from '../../../config/api.js'
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
 const REFRESH_INTERVAL = 15000
 
 const classifierTypes = [
@@ -10,12 +10,20 @@ const classifierTypes = [
 ]
 
 async function fetchJson(path, signal) {
-  const response = await fetch(`${API_BASE}${path}`, { signal, headers: { Accept: 'application/json' } })
+  const API_BASE = getApiBase()
+  const response = await fetch(`${API_BASE}${path}`, { 
+    signal, 
+    headers: { 
+      Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    } 
+  })
   if (!response.ok) throw new Error(`Backend returned ${response.status}`)
   return response.json()
 }
 
 function assetUrl(path) {
+  const API_BASE = getApiBase()
   if (!path || /^https?:\/\//i.test(path) || API_BASE.startsWith('/')) return path
   return new URL(path, API_BASE).toString()
 }

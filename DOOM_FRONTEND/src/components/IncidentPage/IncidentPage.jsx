@@ -7,8 +7,7 @@ import IncidentTable from './IncidentTable/IncidentTable.jsx'
 import InspectionDrawer from './InspectionDrawer/InspectionDrawer.jsx'
 import AuditFooter from './AuditFooter/AuditFooter.jsx'
 import './IncidentPage.css'
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
+import { getApiBase } from '../../config/api.js'
 
 export default function IncidentPage({ user, theme, onThemeChange, onHome, onLive, onAnalytics, onHow, onSignOut }) {
   const [incidents, setIncidents] = useState([])
@@ -21,20 +20,27 @@ export default function IncidentPage({ user, theme, onThemeChange, onHome, onLiv
   const [pageSize, setPageSize] = useState(7)
   const [broadcasting, setBroadcasting] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [connected, setConnected] = useState(false)
   const searchRef = useRef(null)
 
   useEffect(() => {
     const controller = new AbortController()
     async function fetchIncidents() {
       try {
+        const API_BASE = getApiBase()
         const token = localStorage.getItem('token')
         const res = await fetch(`${API_BASE}/events?limit=100`, { 
           signal: controller.signal,
           headers: {
-            'Authorization': token ? `Bearer ${token}` : ''
+            'Authorization': token ? `Bearer ${token}` : '',
+            'ngrok-skip-browser-warning': 'true'
           }
         })
-        if (!res.ok) return
+        if (!res.ok) {
+          setConnected(false)
+          return
+        }
+        setConnected(true)
         const data = await res.json()
         const items = Array.isArray(data) ? data : data.items || []
         const formatted = items.map(evt => ({
@@ -120,7 +126,7 @@ export default function IncidentPage({ user, theme, onThemeChange, onHome, onLiv
           <IncidentTable rows={rows} selectedId={selectedId} checked={selectedIds.length} setSelectedIds={setSelectedIds} selectedIds={selectedIds} onSelect={setSelectedId} page={page} setPage={setPage} pageCount={pageCount} pageSize={pageSize} setPageSize={setPageSize} onAcknowledge={() => {}} onExportTelemetry={exportTelemetry} onPurge={() => {}} />
           <InspectionDrawer incident={incidents.find(i => i.id === selectedId)} onUpdateStatus={updateStatus} />
         </div>
-        <AuditFooter />
+        <AuditFooter connected={connected} />
       </main>
     </div>
   )

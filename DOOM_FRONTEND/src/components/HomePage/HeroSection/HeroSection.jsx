@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
+import { getApiBase } from '../../../config/api.js'
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
 const REFRESH_INTERVAL = 15000
 
 function CameraRegistry() {
@@ -11,9 +11,13 @@ function CameraRegistry() {
 
     async function loadCameras() {
       try {
+        const API_BASE = getApiBase()
         const response = await fetch(`${API_BASE}/cameras`, {
           signal: controller.signal,
-          headers: { Accept: 'application/json' },
+          headers: { 
+            Accept: 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
         })
         if (!response.ok) throw new Error(`Backend returned ${response.status}`)
         const cameras = await response.json()

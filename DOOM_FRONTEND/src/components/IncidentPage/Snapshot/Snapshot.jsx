@@ -1,6 +1,7 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
+import { getApiBase } from '../../../config/api.js'
 
 export default function Snapshot({ incident, small = false }) {
+  const API_BASE = getApiBase()
   if (incident?.snapshot_path) {
     return (
       <div className={`incident-snapshot-real ${small ? 'small-thumb' : 'large-thumb'}`}>

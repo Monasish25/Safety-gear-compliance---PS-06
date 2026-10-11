@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
+import { getApiBase } from '../../../config/api.js'
 
 const TAB = { DEMO: 'demo', LIBRARY: 'library', UPLOAD: 'upload' }
 
 export default function VideoUploadModal({ onClose, onUploadSuccess, onTriggerDemo }) {
+  const API_BASE = getApiBase()
   const [activeTab, setActiveTab] = useState(TAB.LIBRARY)
 
   // Upload tab state

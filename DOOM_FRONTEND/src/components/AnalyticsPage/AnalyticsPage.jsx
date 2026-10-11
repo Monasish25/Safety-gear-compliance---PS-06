@@ -9,17 +9,19 @@ import RiskLedger from './RiskLedger/RiskLedger.jsx'
 import AnalyticsFooter from './Footer/AnalyticsFooter.jsx'
 import AnalyticsToast from './Toast/AnalyticsToast.jsx'
 import './AnalyticsPage.css'
+import { getApiBase } from '../../config/api.js'
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
 const REFRESH_INTERVAL = 15000
 
 async function getBackendData(path, signal) {
+  const API_BASE = getApiBase()
   const token = localStorage.getItem('token')
   const response = await fetch(`${API_BASE}${path}`, { 
     signal, 
     headers: { 
       'Accept': 'application/json',
-      'Authorization': token ? `Bearer ${token}` : ''
+      'Authorization': token ? `Bearer ${token}` : '',
+      'ngrok-skip-browser-warning': 'true'
     } 
   })
   if (!response.ok) throw new Error(`Backend returned ${response.status}`)
